@@ -1,0 +1,237 @@
+#pragma require "openrobots2-idl >= 2.0"
+
+#include "or/pose/pose_estimator.gen"
+#include "or/pose/rigid_body.gen"
+#include "or/pose/wrench_estimator.gen"
+#include "or/robot/rotorcraft.gen"
+
+component my_first_genom {
+  version        "2.4";
+  email          "openrobots@laas.fr";
+  lang           "c";
+  require        "genom3 >= 2.99.41";
+  codels-require "eigen3";
+  codels-require "proxsuite >= 0.6.4";
+
+  uses     or_rotorcraft, or_pose_estimator;
+  provides or_wrench_estimator;
+
+  port in  or_pose_estimator::state state;
+  port in  or_rigid_body::state reference;
+
+  port out or_wrench_estimator::state wrench_measure {
+    doc "Provides current wrench measurements.";
+    doc "";
+    doc "This port contains the current wrench exerted by the UAV according";
+    doc "to the propeller measurements and the geometric model.";
+  };
+
+  exception e_input, e_geom;
+  exception e_sys { short code; string<128> what; };
+  exception e_inval { string<128> what; };
+
+  native log_s;
+
+  enum attitude_control_mode {
+    full_attitude,
+    tilt_prioritized
+  };
+
+  ids {
+    struct body_s {
+      double G[6 * or_rotorcraft::max_rotors];
+      double iG[or_rotorcraft::max_rotors * 6];
+      double J[3 * 3];
+      double mass;
+
+      unsigned short rotors;
+      double wmin, wmax;
+      double wrench_min[6], wrench_max[6];
+
+      boolean init;
+    } body;
+
+    struct servo_s {
+      struct sat_s { double x, v, ix; } sat;
+
+      struct satweight_s {
+        boolean enable;
+        double thrust, tilt, head;
+      } satweight;
+
+      struct gain_s {
+        double Kpxy, Kpz, Kqxy, Kqz, Kvxy, Kvz, Kwxy, Kwz;
+        double Kixy, Kiz;
+      } gain;
+
+      attitude_control_mode att_mode;
+      double ramp;
+      double scale;
+
+      struct emerg_s {
+        double descent;
+        double dx, dq, dv, dw;
+      } emerg;
+    } servo;
+
+    or_rigid_body::state reference;
+    log_s log;
+  };
+
+  attribute set_saturation(in servo.sat);
+
+  attribute set_saturation_weights(in servo.satweight = {
+      .enable = TRUE,
+      .thrust = 10.,
+      .tilt = 100.,
+      .head = 1.
+    }) {
+    validate my_first_genom_set_satweights(in satweight);
+    codel my_first_genom_reset_controller(in body, in servo);
+    throw e_inval;
+  };
+
+  attribute set_servo_gain(in servo.gain);
+
+  attribute set_control_mode(
+    in servo.att_mode = tilt_prioritized
+  );
+
+  attribute set_wlimit(
+    in body.wmin,
+    in body.wmax
+  ) {
+    codel my_first_genom_set_wlimit(inout body);
+    codel my_first_genom_reset_controller(in body, in servo);
+  };
+
+  attribute set_mass(in body.mass) {
+    validate my_first_genom_change_mass(in mass, inout body);
+  };
+
+  attribute set_geom(
+    in body.mass,
+    in body.G,
+    in body.J
+  ) {
+    codel my_first_genom_set_geom(inout body);
+    codel my_first_genom_reset_controller(in body, in servo);
+  };
+
+  function set_gtmrp_geom(
+    in unsigned short rotors = 4,
+    in double cx = 0.,
+    in double cy = 0.,
+    in double cz = 0.,
+    in double armlen = 0.23,
+    in double mass = 1.28,
+    in double mbodyw = 0.11,
+    in double mbodyh = 0.17,
+    in double mmotor = 0.07,
+    in double rx = 0,
+    in double ry = 0,
+    in short rz = -1,
+    in double cf = 6.5e-4,
+    in double ct = 1e-5
+  ) {
+    codel my_first_genom_set_gtmrp_geom(
+      in rotors, in cx, in cy, in cz, in armlen,
+      in mass, in mbodyw, in mbodyh, in mmotor,
+      in rx, in ry, in rz, in cf, in ct,
+      out body
+    );
+    codel my_first_genom_reset_controller(in body, in servo);
+    throw e_inval;
+  };
+
+  attribute set_emerg(in servo.emerg) {
+    validate my_first_genom_set_emerg(local inout emerg);
+  };
+
+  attribute get_servo_parameters(out servo);
+  attribute get_body_parameters(out body);
+
+  function get_reference(out or_rigid_body::state reference) {
+    codel my_first_genom_get_reference(ids in reference::internal,
+                                       local out reference);
+  };
+
+  const unsigned short control_period_ms = 1;
+
+  task main {
+    period control_period_ms ms;
+
+    codel<start> my_first_genom_main_start(out ::ids, out rotor_input)
+      yield init;
+
+    codel<init> my_first_genom_main_init(
+      ids inout reference, in body, in state,
+      in rotor_measure,
+      out rotor_input, out wrench_measure
+    ) yield pause::init, pause::control;
+
+    codel<control> my_first_genom_main_control(
+      in body, inout servo,
+      in state, in wrench_measure,
+      ids inout reference,
+      inout log, out rotor_input
+    ) yield measure, emergency;
+
+    codel<measure> my_first_genom_main_measure(
+      in body, in state, in rotor_measure,
+      out wrench_measure
+    ) yield pause::control;
+
+    codel<emergency> my_first_genom_main_emergency(
+      in body, inout servo,
+      in state, ids inout reference,
+      inout log, out rotor_input
+    ) yield pause::emergency, control;
+
+    codel<stop> my_first_genom_main_stop(out rotor_input)
+      yield ether;
+  };
+
+  activity servo() {
+    task main;
+
+    validate my_first_genom_check_geom(in body.init);
+
+    codel<start> my_first_genom_servo_main(
+      port in reference::in, ids out reference
+    ) yield pause::start, ether;
+
+    interrupt servo;
+    throw e_input, e_geom;
+  };
+
+  function stop() {
+    codel my_first_genom_servo_stop(ids out reference);
+    interrupt servo;
+  };
+
+  activity log(
+    in string<64> path = "/tmp/my_first_genom.log",
+    in unsigned long decimation = 1
+  ) {
+    task main;
+
+    validate my_first_genom_log_open(in path, in decimation, inout log);
+
+    codel<start> my_first_genom_log_header(in servo, inout log)
+      yield ether;
+
+    throw e_sys;
+  };
+
+  function log_stop() {
+    codel my_first_genom_log_stop(out log);
+  };
+
+  function log_info(
+    out unsigned long miss,
+    out unsigned long total
+  ) {
+    codel my_first_genom_log_info(in log, out miss, out total);
+  };
+};
