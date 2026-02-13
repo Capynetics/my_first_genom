@@ -1,0 +1,208 @@
+/*
+ * Adapted from nhfc to my_first_genom
+ */
+
+#include "acmy_first_genom.h"
+
+#include <sys/time.h>
+
+#include "my_first_genom_c_types.h"
+#include "codels.h"
+
+
+/* --- Task wo ---------------------------------------------------------- */
+
+
+/** Codel my_first_genom_wo_start of task wo.
+ *
+ * Triggered by my_first_genom_start.
+ * Yields to my_first_genom_main.
+ */
+genom_event
+my_first_genom_wo_start(my_first_genom_ids *ids,
+                        const my_first_genom_external_wrench *external_wrench,
+                        const genom_context self)
+{
+  or_wrench_estimator_state *wrench_data;
+
+  ids->wo = (my_first_genom_ids_wo_s){
+    .K = { 10., 10., 10., 10., 10., 10. },
+    .bias = { 0. },
+  };
+
+  wrench_data = external_wrench->data(self);
+
+  wrench_data->ts.sec = 0;
+  wrench_data->ts.nsec = 0;
+  wrench_data->intrinsic = false;
+
+  wrench_data->force._present = false;
+  wrench_data->force_cov._present = false;
+
+  wrench_data->torque._present = false;
+  wrench_data->torque_cov._present = false;
+
+  external_wrench->write(self);
+
+  return my_first_genom_main;
+}
+
+
+/** Codel my_first_genom_wo_main of task wo.
+ *
+ * Triggered by my_first_genom_main.
+ * Yields to my_first_genom_pause_main, my_first_genom_stop.
+ */
+genom_event
+my_first_genom_wo_main(const my_first_genom_ids_body_s *body,
+                       const my_first_genom_ids_wo_s *wo,
+                       const my_first_genom_state *state,
+                       const my_first_genom_rotor_measure *rotor_measure,
+                       const my_first_genom_external_wrench *external_wrench,
+                       const genom_context self)
+{
+  const or_pose_estimator_state *state_data;
+  const or_rotorcraft_output *rotor_data;
+
+  or_wrench_estimator_state *wrench_data;
+  double wprop[or_rotorcraft_max_rotors];
+  double xF[3], xT[3];
+  struct timeval tv;
+  double now;
+  size_t i;
+  int s;
+
+  gettimeofday(&tv, NULL);
+  now = tv.tv_sec + 1e-6 * tv.tv_usec;
+
+  if (!body->init) return my_first_genom_pause_main;
+
+  wrench_data = external_wrench->data(self);
+  wrench_data->force._present = false;
+  wrench_data->torque._present = false;
+
+  if (rotor_measure->read(self)) return my_first_genom_pause_main;
+  rotor_data = rotor_measure->data(self);
+  if (!rotor_data) return my_first_genom_pause_main;
+
+  for(i = 0; i < rotor_data->rotor._length; i++) {
+    if (now > 0.1 +
+        rotor_data->rotor._buffer[i].ts.sec +
+        1e-9 * rotor_data->rotor._buffer[i].ts.nsec)
+      return my_first_genom_pause_main;
+
+    if (rotor_data->rotor._buffer[i].spinning)
+      wprop[i] = rotor_data->rotor._buffer[i].velocity;
+    else
+      wprop[i] = 0.;
+  }
+
+  state_data = state->data(self);
+  if (!state_data) return my_first_genom_pause_main;
+
+  if (now > 0.1 + state_data->ts.sec + 1e-9 * state_data->ts.nsec)
+    return my_first_genom_pause_main;
+
+  s = my_first_genom_wrench_observer(body, wo, state_data, wprop, xF, xT);
+  if (s) return my_first_genom_pause_main;
+
+  wrench_data->ts = state_data->ts;
+
+  wrench_data->force._present = true;
+  wrench_data->force._value.x = xF[0];
+  wrench_data->force._value.y = xF[1];
+  wrench_data->force._value.z = xF[2];
+
+  wrench_data->torque._present = true;
+  wrench_data->torque._value.x = xT[0];
+  wrench_data->torque._value.y = xT[1];
+  wrench_data->torque._value.z = xT[2];
+
+  external_wrench->write(self);
+
+  return my_first_genom_pause_main;
+}
+
+
+/** Codel my_first_genom_wo_stop of task wo.
+ *
+ * Triggered by my_first_genom_stop.
+ * Yields to my_first_genom_ether.
+ */
+genom_event
+my_first_genom_wo_stop(my_first_genom_ids *ids,
+                       const genom_context self)
+{
+  return my_first_genom_ether;
+}
+
+
+/* --- Activity set_wo_zero --------------------------------------------- */
+
+
+/** Codel my_first_genom_wo_zero_start of activity set_wo_zero.
+ *
+ * Triggered by my_first_genom_start.
+ * Yields to my_first_genom_collect.
+ * Throws my_first_genom_e_geom.
+ */
+genom_event
+my_first_genom_wo_zero_start(double accum[6], uint32_t *n,
+                             const genom_context self)
+{
+  int i;
+  for(i = 0; i < 6; i++) accum[i] = 0.;
+  *n = 0;
+  return my_first_genom_collect;
+}
+
+
+/** Codel my_first_genom_wo_zero_collect of activity set_wo_zero.
+ *
+ * Triggered by my_first_genom_collect.
+ * Yields to my_first_genom_pause_collect, my_first_genom_main.
+ */
+genom_event
+my_first_genom_wo_zero_collect(double duration,
+                               const my_first_genom_external_wrench *external_wrench,
+                               double accum[6], uint32_t *n,
+                               const genom_context self)
+{
+  or_wrench_estimator_state *wrench_data;
+
+  wrench_data = external_wrench->data(self);
+
+  if (wrench_data->force._present) {
+    accum[0] += wrench_data->force._value.x;
+    accum[1] += wrench_data->force._value.y;
+    accum[2] += wrench_data->force._value.z;
+  }
+  if (wrench_data->torque._present) {
+    accum[3] += wrench_data->torque._value.x;
+    accum[4] += wrench_data->torque._value.y;
+    accum[5] += wrench_data->torque._value.z;
+  }
+
+  return (++(*n) < duration * 1000./my_first_genom_wo_period_ms)
+    ? my_first_genom_pause_collect
+    : my_first_genom_main;
+}
+
+
+/** Codel my_first_genom_wo_zero_main of activity set_wo_zero.
+ *
+ * Triggered by my_first_genom_main.
+ * Yields to my_first_genom_ether.
+ */
+genom_event
+my_first_genom_wo_zero_main(const double accum[6],
+                            uint32_t n,
+                            double bias[6],
+                            const genom_context self)
+{
+  int i;
+  for(i = 0; i < 6; i++)
+    bias[i] += accum[i] / n;
+
+  return my_first_genom_ether;
+}

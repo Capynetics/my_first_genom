@@ -6,13 +6,16 @@ AC_INIT([my_first_genom-genom3],[2.4],[openrobots@laas.fr])
 AC_CONFIG_MACRO_DIR([autoconf])
 AC_CONFIG_AUX_DIR([autoconf])
 AC_CONFIG_HEADERS([autoconf/acmy_first_genom.h])
+
+m4_include([autoconf/ag_templates.m4])
+
 AM_INIT_AUTOMAKE([foreign no-define])
 
 dnl Compilers
 dnl
 LT_INIT([disable-static])
 AC_PROG_CC
-
+AC_PROG_CXX
 
 dnl Require GNU make
 AC_CACHE_CHECK([for GNU make], [ac_cv_path_MAKE],

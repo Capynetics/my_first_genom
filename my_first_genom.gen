@@ -19,12 +19,7 @@ component my_first_genom {
   port in  or_pose_estimator::state state;
   port in  or_rigid_body::state reference;
 
-  port out or_wrench_estimator::state wrench_measure {
-    doc "Provides current wrench measurements.";
-    doc "";
-    doc "This port contains the current wrench exerted by the UAV according";
-    doc "to the propeller measurements and the geometric model.";
-  };
+  port out or_wrench_estimator::state wrench_measure;
 
   exception e_input, e_geom;
   exception e_sys { short code; string<128> what; };
@@ -43,11 +38,9 @@ component my_first_genom {
       double iG[or_rotorcraft::max_rotors * 6];
       double J[3 * 3];
       double mass;
-
       unsigned short rotors;
       double wmin, wmax;
       double wrench_min[6], wrench_max[6];
-
       boolean init;
     } body;
 
@@ -80,12 +73,7 @@ component my_first_genom {
 
   attribute set_saturation(in servo.sat);
 
-  attribute set_saturation_weights(in servo.satweight = {
-      .enable = TRUE,
-      .thrust = 10.,
-      .tilt = 100.,
-      .head = 1.
-    }) {
+  attribute set_saturation_weights(in servo.satweight) {
     validate my_first_genom_set_satweights(in satweight);
     codel my_first_genom_reset_controller(in body, in servo);
     throw e_inval;
@@ -93,14 +81,9 @@ component my_first_genom {
 
   attribute set_servo_gain(in servo.gain);
 
-  attribute set_control_mode(
-    in servo.att_mode = tilt_prioritized
-  );
+  attribute set_control_mode(in servo.att_mode = tilt_prioritized);
 
-  attribute set_wlimit(
-    in body.wmin,
-    in body.wmax
-  ) {
+  attribute set_wlimit(in body.wmin, in body.wmax) {
     codel my_first_genom_set_wlimit(inout body);
     codel my_first_genom_reset_controller(in body, in servo);
   };
@@ -109,11 +92,7 @@ component my_first_genom {
     validate my_first_genom_change_mass(in mass, inout body);
   };
 
-  attribute set_geom(
-    in body.mass,
-    in body.G,
-    in body.J
-  ) {
+  attribute set_geom(in body.mass, in body.G, in body.J) {
     codel my_first_genom_set_geom(inout body);
     codel my_first_genom_reset_controller(in body, in servo);
   };
@@ -132,14 +111,14 @@ component my_first_genom {
     in double ry = 0,
     in short rz = -1,
     in double cf = 6.5e-4,
-    in double ct = 1e-5
-  ) {
+    in double ct = 1e-5) {
+
     codel my_first_genom_set_gtmrp_geom(
       in rotors, in cx, in cy, in cz, in armlen,
       in mass, in mbodyw, in mbodyh, in mmotor,
       in rx, in ry, in rz, in cf, in ct,
-      out body
-    );
+      out body);
+
     codel my_first_genom_reset_controller(in body, in servo);
     throw e_inval;
   };
@@ -167,26 +146,26 @@ component my_first_genom {
     codel<init> my_first_genom_main_init(
       ids inout reference, in body, in state,
       in rotor_measure,
-      out rotor_input, out wrench_measure
-    ) yield pause::init, pause::control;
+      out rotor_input, out wrench_measure)
+      yield pause::init, pause::control;
 
     codel<control> my_first_genom_main_control(
       in body, inout servo,
       in state, in wrench_measure,
       ids inout reference,
-      inout log, out rotor_input
-    ) yield measure, emergency;
+      inout log, out rotor_input)
+      yield measure, emergency;
 
     codel<measure> my_first_genom_main_measure(
       in body, in state, in rotor_measure,
-      out wrench_measure
-    ) yield pause::control;
+      out wrench_measure)
+      yield pause::control;
 
     codel<emergency> my_first_genom_main_emergency(
       in body, inout servo,
       in state, ids inout reference,
-      inout log, out rotor_input
-    ) yield pause::emergency, control;
+      inout log, out rotor_input)
+      yield pause::emergency, control;
 
     codel<stop> my_first_genom_main_stop(out rotor_input)
       yield ether;
@@ -198,8 +177,8 @@ component my_first_genom {
     validate my_first_genom_check_geom(in body.init);
 
     codel<start> my_first_genom_servo_main(
-      port in reference::in, ids out reference
-    ) yield pause::start, ether;
+      port in reference::in, ids out reference)
+      yield pause::start, ether;
 
     interrupt servo;
     throw e_input, e_geom;
@@ -212,8 +191,8 @@ component my_first_genom {
 
   activity log(
     in string<64> path = "/tmp/my_first_genom.log",
-    in unsigned long decimation = 1
-  ) {
+    in unsigned long decimation = 1) {
+
     task main;
 
     validate my_first_genom_log_open(in path, in decimation, inout log);
@@ -230,8 +209,8 @@ component my_first_genom {
 
   function log_info(
     out unsigned long miss,
-    out unsigned long total
-  ) {
+    out unsigned long total) {
+
     codel my_first_genom_log_info(in log, out miss, out total);
   };
 };
