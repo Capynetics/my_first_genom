@@ -229,6 +229,9 @@ component my_first_genom {
   const unsigned short control_period_ms = 1;
 
   task main {
+
+    codel<start> init_ids(out stored) yield ether;
+
     period control_period_ms ms;
 
     codel<start> my_first_genom_main_start(out ::ids, out rotor_input)
@@ -376,5 +379,21 @@ component my_first_genom {
     doc		"Show missed log entries";
 
     codel my_first_genom_log_info(in log, out miss, out total);
+  };
+  
+  /* Store a string */
+  function set(
+    in string value : "String to store"
+  )
+  {
+    codel set_string(in value, out stored);
+  };
+
+  /* Return stored string */
+  function get(
+    out string value : "Stored string"
+  )
+  {
+    codel get_string(in stored, out value);
   };
 };
