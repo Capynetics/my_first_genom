@@ -574,7 +574,7 @@ genom_event
 init_ids(char **urdf_path, const genom_context self)
 {
   *urdf_path = strdup("");
-  return stringstore_ether;
+  return my_first_genom_ether;
 }
 
 
