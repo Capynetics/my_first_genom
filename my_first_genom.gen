@@ -230,7 +230,7 @@ component my_first_genom {
 
   task main {
 
-    codel<start> init_ids(out stored) yield ether;
+    codel<start> init_ids(out urdf_path) yield ether;
 
     period control_period_ms ms;
 
@@ -380,20 +380,20 @@ component my_first_genom {
 
     codel my_first_genom_log_info(in log, out miss, out total);
   };
-  
-  /* Store a string */
-  function set(
-    in string value : "String to store"
+
+   /* Store URDF path */
+  function set_urdf(
+    in string value : "URDF file path"
   )
   {
-    codel set_string(in value, out stored);
+    codel set_string(in value, out urdf_path);
   };
 
-  /* Return stored string */
-  function get(
-    out string value : "Stored string"
+  /* Retrieve URDF path */
+  function get_urdf(
+    out string value : "Stored URDF file path"
   )
   {
-    codel get_string(in stored, out value);
+    codel get_string(in urdf_path, out value);
   };
 };
