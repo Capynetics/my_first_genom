@@ -93,6 +93,8 @@ component my_first_genom {
 
     or_rigid_body::state reference;
 
+    string urdf_path;
+
     /* logging */
     log_s log;
   };

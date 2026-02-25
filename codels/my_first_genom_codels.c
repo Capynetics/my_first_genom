@@ -21,6 +21,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "my_first_genom_c_types.h"
 
@@ -563,5 +565,40 @@ my_first_genom_log_info(const my_first_genom_log_s *log, uint32_t *miss, uint32_
     *miss = log->missed;
     *total = log->total;
   }
+  return genom_ok;
+}
+
+/* --- Task start: IDS initialization -------------------------- */
+
+genom_event
+init_ids(char **urdf_path, const genom_context self)
+{
+  *urdf_path = strdup("");
+  return stringstore_ether;
+}
+
+
+/* --- Function set -------------------------------------------- */
+
+genom_event
+set_string(const char *value, char **urdf_path,
+           const genom_context self)
+{
+  if (*urdf_path) free(*urdf_path);
+
+  *urdf_path = strdup(value);
+
+  return genom_ok;
+}
+
+
+/* --- Function get -------------------------------------------- */
+
+genom_event
+get_string(const char *urdf_path, char **value,
+           const genom_context self)
+{
+  *value = strdup(urdf_path);
+
   return genom_ok;
 }
