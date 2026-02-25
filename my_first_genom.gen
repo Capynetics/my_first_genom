@@ -229,9 +229,6 @@ component my_first_genom {
   const unsigned short control_period_ms = 1;
 
   task main {
-
-    codel<start> init_ids(out urdf_path) yield ether;
-
     period control_period_ms ms;
 
     codel<start> my_first_genom_main_start(out ::ids, out rotor_input)
@@ -381,17 +378,15 @@ component my_first_genom {
     codel my_first_genom_log_info(in log, out miss, out total);
   };
 
-   /* Store URDF path */
   function set_urdf(
-    in string value : "URDF file path"
+    in string value
   )
   {
     codel set_string(in value, out urdf_path);
   };
 
-  /* Retrieve URDF path */
   function get_urdf(
-    out string value : "Stored URDF file path"
+    out string value
   )
   {
     codel get_string(in urdf_path, out value);
