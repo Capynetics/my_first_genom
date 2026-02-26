@@ -295,7 +295,7 @@ my_first_genom_set_gtmrp_geom(uint16_t rotors, double cx, double cy, double cz,
 
   e = my_first_genom_set_geom(body, self);
   if (e) return e;
-
+  
   e = my_first_genom_inertia(
     rotors, armlen, mass, mbodyw, mbodyh, mmotor, body->J, self);
   if (e) return e;
@@ -600,5 +600,25 @@ get_string(const char *urdf_path, char **value,
 {
   *value = strdup(urdf_path);
 
+  return genom_ok;
+}
+
+
+/** Codel get_motors
+ *
+ * Read the `motors` input port and copy its content into `out`.
+ * Returns `genom_ok` when a sample was read, otherwise throws `e_input`.
+ */
+genom_event
+get_motors(const my_first_genom_motors *motors,
+           or_joint_state *out,
+           const genom_context self)
+{
+  const or_joint_state *m;
+
+  if (motors->read(self) || !(m = motors->data(self)))
+    return my_first_genom_e_input(self);
+
+  *out = *m;
   return genom_ok;
 }
