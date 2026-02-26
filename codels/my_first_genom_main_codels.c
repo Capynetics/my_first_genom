@@ -143,6 +143,7 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   if (!body->init) return my_first_genom_pause_init;
 
   /* update measured wrench */
+  printf("hello\n");
   if (!state->read(self))
     my_first_genom_main_measure(body, state, rotor_measure, wrench_measure, self);
 
