@@ -153,7 +153,9 @@ my_first_genom_main_init(or_rigid_body_state *reference,
     return my_first_genom_pause_init;
 
   state_data = state->data(self);
+  printf("init: ");
   if (state_data) {
+    printf("intrinsic=%d ", state_data->intrinsic);
     printf("ts=%ld.%09ld\n", (long)state_data->ts.sec, (long)state_data->ts.nsec);
   }
   if (state_data && state_data->pos._present && state_data->att._present) {
