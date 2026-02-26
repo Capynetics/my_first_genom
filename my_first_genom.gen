@@ -19,6 +19,7 @@
 #include "or/pose/pose_estimator.gen"
 #include "or/pose/rigid_body.gen"
 #include "or/pose/wrench_estimator.gen"
+#include "or/sensor/joint.gen"
 #include "or/robot/rotorcraft.gen"
 
 component my_first_genom {
