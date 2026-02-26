@@ -392,13 +392,4 @@ component my_first_genom {
   {
     codel get_string(in urdf_path, out value);
   };
-
-  function get_motors(
-    out or_joint::state value
-  ) {
-    doc "Return the latest motors state read from the `motors` input port.";
-    codel get_motors(in motors, out value);
-
-    throw e_input;
-  };
 };
