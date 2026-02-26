@@ -37,13 +37,13 @@ component my_first_genom {
   port in	or_rigid_body::state reference;
   
   /* read joint/motor state from an external component */
-  port in	or_joint::state motors {
+  port in	or_joint::state joints {
     doc "Current joint (motor) measurements.";
-    doc "Structure is defined by <or/sensor/joint.gen>; see the `motors`";
+    doc "Structure is defined by <or/sensor/joint.gen>; see the `joints`";
     doc "port documentation for field meanings (names, flags, positions,";
     doc "velocities, efforts).";
   };
-  
+
   port out or_wrench_estimator::state wrench_measure {
     doc "Provides current wrench measurements.";
     doc "";
