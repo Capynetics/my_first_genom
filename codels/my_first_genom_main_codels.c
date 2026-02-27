@@ -130,6 +130,7 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   if (state_data2) {
     printf("intrinsic=%d ", state_data2->intrinsic);
     printf("ts=%ld.%09ld\n", (long)state_data2->ts.sec, (long)state_data2->ts.nsec);
+    printf("pos: %d ", state_data2->pos._present);
   }
 
   /* output zero (minimal) velocity */
