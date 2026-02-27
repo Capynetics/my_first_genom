@@ -124,6 +124,13 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   struct timeval tv;
   int i;
 
+  state_data2 = state->data(self);
+  printf("init: ");
+  if (state_data2) {
+    printf("intrinsic=%d ", state_data2->intrinsic);
+    printf("ts=%ld.%09ld\n", (long)state_data2->ts.sec, (long)state_data2->ts.nsec);
+  }
+  
   /* output zero (minimal) velocity */
   input_data = rotor_input->data(self);
   if (!input_data) return my_first_genom_pause_init;
@@ -153,11 +160,7 @@ my_first_genom_main_init(or_rigid_body_state *reference,
     return my_first_genom_pause_init;
 
   state_data = state->data(self);
-  printf("init: ");
-  if (state_data) {
-    printf("intrinsic=%d ", state_data->intrinsic);
-    printf("ts=%ld.%09ld\n", (long)state_data->ts.sec, (long)state_data->ts.nsec);
-  }
+  
   if (state_data && state_data->pos._present && state_data->att._present) {
     if (!reference->pos._present)
       reference->pos._value = state_data->pos._value;
