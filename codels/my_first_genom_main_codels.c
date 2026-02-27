@@ -129,40 +129,7 @@ my_first_genom_main_init(or_rigid_body_state *reference,
 
   state_data = state->data(self);
 
-  if (joints->read(self))
-    warnx("[init] joints: read failed");
-
-  joints_data = joints->data(self);
-  if (!joints_data) {
-    warnx("[init] joints: NULL");
-  } else {
-    warnx("[init] joints ts=%d.%09d name=%zu flag=%zu pos=%zu vel=%zu effort=%zu",
-          joints_data->ts.sec, joints_data->ts.nsec,
-          joints_data->name._length,
-          joints_data->flag._length,
-          joints_data->position._length,
-          joints_data->velocity._length,
-          joints_data->effort._length);
-
-    nj = joints_data->name._length;
-    if (joints_data->flag._length < nj) nj = joints_data->flag._length;
-    if (joints_data->position._length < nj) nj = joints_data->position._length;
-    if (joints_data->velocity._length < nj) nj = joints_data->velocity._length;
-    if (joints_data->effort._length < nj) nj = joints_data->effort._length;
-
-    nlog = nj < 4 ? nj : 4;
-    for (j = 0; j < nlog; j++) {
-      const char *name = joints_data->name._buffer[j];
-      warnx("[init] joint[%zu] name=%s active=%d emerg=%d pos=%g vel=%g effort=%g",
-            j,
-            name ? name : "(null)",
-            joints_data->flag._buffer[j].active,
-            joints_data->flag._buffer[j].emerg,
-            joints_data->position._buffer[j],
-            joints_data->velocity._buffer[j],
-            joints_data->effort._buffer[j]);
-    }
-  }
+  
 
   /* output zero (minimal) velocity */
   input_data = rotor_input->data(self);
