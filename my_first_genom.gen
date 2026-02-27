@@ -243,6 +243,7 @@ component my_first_genom {
     codel<start> my_first_genom_main_start(out ::ids, out rotor_input)
       yield init;
     codel<init> my_first_genom_main_init(ids inout reference, in body, in state,
+                               in joints,
                                in rotor_measure,
                                out rotor_input, out wrench_measure)
       yield pause::init, pause::control;

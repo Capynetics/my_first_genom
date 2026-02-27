@@ -114,42 +114,30 @@ my_first_genom_main_start(my_first_genom_ids *ids, const my_first_genom_rotor_in
 genom_event
 my_first_genom_main_init(or_rigid_body_state *reference,
                const my_first_genom_ids_body_s *body, const my_first_genom_state *state,
+               const my_first_genom_joints *joints,
                const my_first_genom_rotor_measure *rotor_measure,
                const my_first_genom_rotor_input *rotor_input,
                const my_first_genom_wrench_measure *wrench_measure,
                const genom_context self)
 {
   or_pose_estimator_state *state_data;
+  const void *joints_data;
   or_rotorcraft_input *input_data;
   struct timeval tv;
   int i;
 
   state_data = state->data(self);
-  
-  if (!state_data) {
-    warnx("[init] state: NULL");
-  } else {
-    warnx("[init] state ts=%d.%09d pos=%d att=%d vel=%d avel=%d",
-          state_data->ts.sec, state_data->ts.nsec,
-          state_data->pos._present, state_data->att._present,
-          state_data->vel._present, state_data->avel._present);
 
-    if (state_data->pos._present) {
-      warnx("[init] pos: x=%g y=%g z=%g",
-            state_data->pos._value.x,
-            state_data->pos._value.y,
-            state_data->pos._value.z);
-    }
+  if (joints->read(self))
+    warnx("[init] joints: read failed");
 
-    if (state_data->att._present) {
-      warnx("[init] att: qw=%g qx=%g qy=%g qz=%g",
-            state_data->att._value.qw,
-            state_data->att._value.qx,
-            state_data->att._value.qy,
-            state_data->att._value.qz);
-    }
-  }
-  
+  joints_data = joints->data(self);
+  if (!joints_data)
+    warnx("[init] joints: NULL");
+  else
+    warnx("[init] joints: %p", joints_data);
+    warnx(joints_data);
+
   /* output zero (minimal) velocity */
   input_data = rotor_input->data(self);
   if (!input_data) return my_first_genom_pause_init;
