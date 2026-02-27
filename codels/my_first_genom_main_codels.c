@@ -124,6 +124,32 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   struct timeval tv;
   int i;
 
+  state_data = state->data(self);
+  
+  if (!state_data) {
+    warnx("[init] state: NULL");
+  } else {
+    warnx("[init] state ts=%d.%09d pos=%d att=%d vel=%d avel=%d",
+          state_data->ts.sec, state_data->ts.nsec,
+          state_data->pos._present, state_data->att._present,
+          state_data->vel._present, state_data->avel._present);
+
+    if (state_data->pos._present) {
+      warnx("[init] pos: x=%g y=%g z=%g",
+            state_data->pos._value.x,
+            state_data->pos._value.y,
+            state_data->pos._value.z);
+    }
+
+    if (state_data->att._present) {
+      warnx("[init] att: qw=%g qx=%g qy=%g qz=%g",
+            state_data->att._value.qw,
+            state_data->att._value.qx,
+            state_data->att._value.qy,
+            state_data->att._value.qz);
+    }
+  }
+  
   /* output zero (minimal) velocity */
   input_data = rotor_input->data(self);
   if (!input_data) return my_first_genom_pause_init;
@@ -152,32 +178,6 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   if (!reference->pos._present && !reference->vel._present)
     return my_first_genom_pause_init;
 
-  state_data = state->data(self);
-  
-  if (!state_data) {
-    warnx("[init] state: NULL");
-  } else {
-    warnx("[init] state ts=%d.%09d pos=%d att=%d vel=%d avel=%d",
-          state_data->ts.sec, state_data->ts.nsec,
-          state_data->pos._present, state_data->att._present,
-          state_data->vel._present, state_data->avel._present);
-
-    if (state_data->pos._present) {
-      warnx("[init] pos: x=%g y=%g z=%g",
-            state_data->pos._value.x,
-            state_data->pos._value.y,
-            state_data->pos._value.z);
-    }
-
-    if (state_data->att._present) {
-      warnx("[init] att: qw=%g qx=%g qy=%g qz=%g",
-            state_data->att._value.qw,
-            state_data->att._value.qx,
-            state_data->att._value.qy,
-            state_data->att._value.qz);
-    }
-  }
-  
   if (state_data && state_data->pos._present && state_data->att._present) {
     if (!reference->pos._present)
       reference->pos._value = state_data->pos._value;
