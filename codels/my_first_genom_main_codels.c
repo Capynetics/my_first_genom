@@ -120,6 +120,7 @@ my_first_genom_main_init(or_rigid_body_state *reference,
                const genom_context self)
 {
   or_pose_estimator_state *state_data;
+  or_pose_estimator_state *state_data2;
   or_rotorcraft_input *input_data;
   struct timeval tv;
   int i;
@@ -130,7 +131,7 @@ my_first_genom_main_init(or_rigid_body_state *reference,
     printf("intrinsic=%d ", state_data2->intrinsic);
     printf("ts=%ld.%09ld\n", (long)state_data2->ts.sec, (long)state_data2->ts.nsec);
   }
-  
+
   /* output zero (minimal) velocity */
   input_data = rotor_input->data(self);
   if (!input_data) return my_first_genom_pause_init;
