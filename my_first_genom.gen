@@ -240,18 +240,21 @@ component my_first_genom {
   task main {
     period control_period_ms ms;
 
-    codel<start> my_first_genom_main_start(out ::ids, out rotor_input)
+    codel<start> my_first_genom_main_start(out ::ids, out rotor_input,
+                                           out joint_input)
       yield init;
     codel<init> my_first_genom_main_init(ids inout reference, in body, in state,
                                in joints,
                                in rotor_measure,
-                               out rotor_input, out wrench_measure)
+                               out rotor_input, out joint_input,
+                               out wrench_measure)
       yield pause::init, pause::control;
 
     codel<control> my_first_genom_main_control(in body, inout servo,
                                      in state, in wrench_measure,
                                      ids inout reference,
-                                     inout log, out rotor_input)
+                                     inout log, out rotor_input,
+                                     out joint_input)
       yield measure, emergency;
     codel<measure> my_first_genom_main_measure(in body,
                                      in state, in rotor_measure,
@@ -260,10 +263,11 @@ component my_first_genom {
 
     codel<emergency> my_first_genom_main_emergency(in body, inout servo,
                                          in state, ids inout reference,
-                                         inout log, out rotor_input)
+                                         inout log, out rotor_input,
+                                         out joint_input)
       yield pause::emergency, control;
 
-    codel<stop> my_first_genom_main_stop(out rotor_input)
+    codel<stop> my_first_genom_main_stop(out rotor_input, out joint_input)
       yield ether;
   };
 
