@@ -124,24 +124,22 @@ my_first_genom_main_init(or_rigid_body_state *reference,
                const my_first_genom_wrench_measure *wrench_measure,
                const genom_context self)
 {
-  (void)joint_input;
-
   or_pose_estimator_state *state_data;
   const or_joint_state *joints_data;
   or_rotorcraft_input *input_data;
+  or_joint_input *joint_data = joint_input->data(self);
   struct timeval tv;
   int i;
-  size_t j, nj, nlog;
+  size_t j, nj, maxj, nlog;
 
   state_data = state->data(self);
 
-
+  gettimeofday(&tv, NULL);
 
   /* output zero (minimal) velocity */
   input_data = rotor_input->data(self);
   if (!input_data) return my_first_genom_pause_init;
 
-  gettimeofday(&tv, NULL);
   input_data->ts.sec = tv.tv_sec;
   input_data->ts.nsec = tv.tv_usec * 1000;
   input_data->control = or_rotorcraft_velocity;
@@ -151,6 +149,29 @@ my_first_genom_main_init(or_rigid_body_state *reference,
     input_data->desired._buffer[i] = 0.;
 
   rotor_input->write(self); // writes a zero-velocity command during startup/pause
+
+  /* also keep joint port alive during init with zero efforts */
+  { static int dbg_init = 0; if (dbg_init++ < 10) warnx("INIT: joint_data=%p", (void*)joint_data); }
+  if (joint_data) {
+    const size_t hardcoded_nj = 8;
+
+    joint_data->ts.sec = tv.tv_sec;
+    joint_data->ts.nsec = tv.tv_usec * 1000;
+    joint_data->position._present = false;
+    joint_data->velocity._present = false;
+    joint_data->effort._present = true;
+
+    maxj = sizeof(joint_data->effort._value._buffer) /
+      sizeof(joint_data->effort._value._buffer[0]);
+    nj = hardcoded_nj;
+    if (nj > maxj) nj = maxj;
+
+    joint_data->effort._value._length = nj;
+    for(j = 0; j < nj; j++)
+      joint_data->effort._value._buffer[j] = 0.0;
+
+    joint_input->write(self);
+  }
 
   /* wait for geometry */
   if (!body->init) return my_first_genom_pause_init;
@@ -237,6 +258,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
 
+  { static int dbg_ctrl = 0; if (dbg_ctrl++ < 10) warnx("CONTROL: joint_data=%p", (void*)joint_data); }
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
@@ -259,6 +281,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
         joint_data->effort._value._buffer[i] = 0.0;
     }
 
+    { static int dbg_ctrl_w = 0; if (dbg_ctrl_w++ < 5) warnx("CONTROL: joint_input->write() called"); }
     joint_input->write(self);
   }
 
@@ -408,6 +431,7 @@ my_first_genom_main_emergency(const my_first_genom_ids_body_s *body,
   }
 
   /* also publish joint commands during emergency */
+  { static int dbg_emg = 0; if (dbg_emg++ < 10) warnx("EMERGENCY: joint_data=%p", (void*)joint_data); }
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
