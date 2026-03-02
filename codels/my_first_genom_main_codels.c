@@ -259,6 +259,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     }
 
     joint_input->write(self);
+    printf("sent joint efforts\n");
   }
 
   rotor_input->write(self); // publishes the controller result
