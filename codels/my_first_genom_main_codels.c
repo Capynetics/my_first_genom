@@ -236,26 +236,29 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
 
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
-  printf("hello\n");
+
   if (joint_data) {
-    const size_t hardcoded_nj = 2;
-    const double hardcoded_effort = 10.0;
+    const size_t hardcoded_nj = 8;
 
     joint_data->ts = state_data->ts;
     joint_data->position._present = false;
     joint_data->velocity._present = false;
     joint_data->effort._present = true;
 
-    maxj = 8;
+    maxj = sizeof(joint_data->effort._value._buffer) /
+      sizeof(joint_data->effort._value._buffer[0]);
     nj = hardcoded_nj;
     if (nj > maxj) nj = maxj;
 
     joint_data->effort._value._length = nj;
-    for(i = 0; i < nj; i++)
-      joint_data->effort._value._buffer[i] = hardcoded_effort;
+    for(i = 0; i < nj; i++) {
+      if (i < 2)
+        joint_data->effort._value._buffer[i] = 10.0;
+      else
+        joint_data->effort._value._buffer[i] = 0.0;
+    }
 
     joint_input->write(self);
-    printf("hello2\n");
   }
 
   rotor_input->write(self); // publishes the controller result
