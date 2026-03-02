@@ -240,9 +240,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
-    gettimeofday(&tv, NULL);
-    joint_data->ts.sec = tv.tv_sec;
-    joint_data->ts.nsec = tv.tv_usec * 1000;
+    joint_data->ts = state_data->ts;
     joint_data->position._present = false;
     joint_data->velocity._present = false;
     joint_data->effort._present = true;
@@ -261,7 +259,6 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     }
 
     joint_input->write(self);
-    printf("sent joint efforts\n");
   }
 
   rotor_input->write(self); // publishes the controller result
