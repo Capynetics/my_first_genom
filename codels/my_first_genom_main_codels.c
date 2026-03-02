@@ -240,7 +240,8 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
-    joint_data->ts = state_data->ts;
+    joint_data->ts.sec = tv.tv_sec;
+    joint_data->ts.nsec = tv.tv_usec * 1000;
     joint_data->position._present = false;
     joint_data->velocity._present = false;
     joint_data->effort._present = true;
@@ -362,16 +363,15 @@ my_first_genom_main_emergency(const my_first_genom_ids_body_s *body,
                     const my_first_genom_joint_input *joint_input,
                     const genom_context self)
 {
-  (void)joint_input;
-
   static const or_wrench_estimator_state wrench_data = {
     .force._present = false, .torque._present = false
   };
 
   or_pose_estimator_state *state_data = NULL;
   or_rotorcraft_input *input_data = rotor_input->data(self);
+  or_joint_input *joint_data = joint_input->data(self);
   struct timeval tv;
-  size_t i;
+  size_t i, nj, maxj;
   int e;
 
   gettimeofday(&tv, NULL);
@@ -407,6 +407,32 @@ my_first_genom_main_emergency(const my_first_genom_ids_body_s *body,
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
 
+  /* also publish joint commands during emergency */
+  if (joint_data) {
+    const size_t hardcoded_nj = 8;
+
+    joint_data->ts.sec = tv.tv_sec;
+    joint_data->ts.nsec = tv.tv_usec * 1000;
+    joint_data->position._present = false;
+    joint_data->velocity._present = false;
+    joint_data->effort._present = true;
+
+    maxj = sizeof(joint_data->effort._value._buffer) /
+      sizeof(joint_data->effort._value._buffer[0]);
+    nj = hardcoded_nj;
+    if (nj > maxj) nj = maxj;
+
+    joint_data->effort._value._length = nj;
+    for(i = 0; i < nj; i++) {
+      if (i < 2)
+        joint_data->effort._value._buffer[i] = 10.0;
+      else
+        joint_data->effort._value._buffer[i] = 0.0;
+    }
+
+    joint_input->write(self);
+  }
+
   rotor_input->write(self); // sends the emergency-mode command (scaled/ramped) so the vehicle keeps receiving controlled descent/recovery inputs
   return my_first_genom_pause_emergency;
 }
@@ -422,10 +448,10 @@ my_first_genom_main_stop(const my_first_genom_rotor_input *rotor_input,
                const my_first_genom_joint_input *joint_input,
                const genom_context self)
 {
-  (void)joint_input;
-
   or_rotorcraft_input *input_data;
+  or_joint_input *joint_data = joint_input->data(self);
   struct timeval tv;
+  size_t j, nj, maxj;
   int i;
 
   input_data = rotor_input->data(self);
@@ -438,6 +464,26 @@ my_first_genom_main_stop(const my_first_genom_rotor_input *rotor_input,
 
   for(i = 0; i < input_data->desired._length; i++)
     input_data->desired._buffer[i] = 0.;
+
+  /* zero joint efforts on stop */
+  if (joint_data) {
+    joint_data->ts.sec = tv.tv_sec;
+    joint_data->ts.nsec = tv.tv_usec * 1000;
+    joint_data->position._present = false;
+    joint_data->velocity._present = false;
+    joint_data->effort._present = true;
+
+    maxj = sizeof(joint_data->effort._value._buffer) /
+      sizeof(joint_data->effort._value._buffer[0]);
+    nj = 8;
+    if (nj > maxj) nj = maxj;
+
+    joint_data->effort._value._length = nj;
+    for(j = 0; j < nj; j++)
+      joint_data->effort._value._buffer[j] = 0.0;
+
+    joint_input->write(self);
+  }
 
   rotor_input->write(self); // sends a zero-velocity command on stop
   return my_first_genom_ether;
