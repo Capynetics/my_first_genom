@@ -253,7 +253,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     joint_data->effort._value._length = nj;
     for(i = 0; i < nj; i++) {
       if (i < 2)
-        joint_data->effort._value._buffer[i] = 10.0;
+        joint_data->effort._value._buffer[i] = 1.0;
       else
         joint_data->effort._value._buffer[i] = 0.0;
     }
