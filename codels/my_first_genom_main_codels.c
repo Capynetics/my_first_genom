@@ -236,7 +236,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
 
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
-
+  printf("hello\n");
   if (joint_data) {
     const size_t hardcoded_nj = 2;
     const double hardcoded_effort = 10.0;
@@ -255,6 +255,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
       joint_data->effort._value._buffer[i] = hardcoded_effort;
 
     joint_input->write(self);
+    printf("hello2\n");
   }
 
   rotor_input->write(self); // publishes the controller result
