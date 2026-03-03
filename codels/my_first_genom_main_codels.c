@@ -105,6 +105,21 @@ my_first_genom_main_start(my_first_genom_ids *ids, const my_first_genom_rotor_in
     .decimation = 1, .missed = 0, .total = 0
   };
 
+  /* Initialize wholebody controller */
+  ids->wholebody = (my_first_genom_ids_wholebody_s){
+    .nj = 0,
+    .Kp_base = {10, 10, 10, 10, 10, 10},
+    .Kd_base = {5, 5, 5, 5, 5, 5},
+    .Kp_joint = {1, 1, 0, 0, 0, 0, 0, 0},
+    .Kd_joint = {0.3, 0.3, 0, 0, 0, 0, 0, 0},
+    .qd_base = {0, 0, 1, 0, 0, 0, 1},  /* hover at z=1, identity quat */
+    .qd_joint = {0, 0, 0, 0, 0, 0, 0, 0},
+    .init = false
+  };
+
+  /* Initialize pinocchio pointer to NULL (allocated in load_urdf) */
+  ids->pinocchio = NULL;
+
   return my_first_genom_init;
 }
 
