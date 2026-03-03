@@ -13,6 +13,7 @@ libmy_first_genom_codels_la_SOURCES += my_first_genom_main_codels.c
 
 libmy_first_genom_codels_la_SOURCES += controller.cc
 libmy_first_genom_codels_la_SOURCES += geometry.cc
+libmy_first_genom_codels_la_SOURCES += pinocchio_codels.cc
 libmy_first_genom_codels_la_SOURCES += codels.h
 
 

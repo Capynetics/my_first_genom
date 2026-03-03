@@ -415,6 +415,17 @@ component my_first_genom {
     codel set_string(in value, out urdf_path);
   };
 
+  function load_urdf() {
+    doc "Load robot model from URDF file";
+    doc "";
+    doc "The URDF path must be set first with set_urdf().";
+    doc "The model is loaded with a free-flyer base (6 DOF).";
+    doc "Number of joints is automatically detected from the model.";
+
+    codel my_first_genom_load_urdf(in urdf_path, inout pinocchio, inout wholebody);
+    throw e_sys;
+  };
+
   function get_urdf(
     out string value
   )
