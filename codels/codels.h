@@ -38,6 +38,19 @@ enum my_first_genome {
 };
 
 #ifdef __cplusplus
+#include <pinocchio/multibody/model.hpp>
+#include <pinocchio/multibody/data.hpp>
+
+struct my_first_genom_pinocchio_s {
+  pinocchio::Model *model;
+  pinocchio::Data *data;
+  bool loaded;
+};
+#else
+struct my_first_genom_pinocchio_s;
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 

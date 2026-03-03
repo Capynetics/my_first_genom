@@ -63,6 +63,8 @@ component my_first_genom {
     tilt_prioritized
   };
 
+  native pinocchio_s;
+
   ids {
     struct body_s {
       double G[6 * or_rotorcraft::max_rotors]; /* velocities^2 to wrench */
@@ -104,6 +106,8 @@ component my_first_genom {
     or_rigid_body::state reference;
 
     string urdf_path;
+
+    pinocchio_s pinocchio;
 
     /* logging */
     log_s log;
