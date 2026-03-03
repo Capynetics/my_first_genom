@@ -109,6 +109,17 @@ component my_first_genom {
 
     pinocchio_s pinocchio;
 
+    struct wholebody_s {
+      unsigned short nj;              /* number of joints (0-8) */
+      double Kp_base[6];              /* base gains: [x,y,z,wx,wy,wz] */
+      double Kd_base[6];              /* base damping */
+      double Kp_joint[8];             /* joint gains */
+      double Kd_joint[8];             /* joint damping */
+      double qd_base[7];              /* desired base: [x,y,z,qx,qy,qz,qw] */
+      double qd_joint[8];             /* desired joint positions */
+      boolean init;                   /* true when URDF loaded and configured */
+    } wholebody;
+
     /* logging */
     log_s log;
   };
