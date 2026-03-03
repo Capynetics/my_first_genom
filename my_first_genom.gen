@@ -29,6 +29,7 @@ component my_first_genom {
   require		"genom3 >= 2.99.41";
   codels-require	"eigen3";
   codels-require	"proxsuite >= 0.6.4";
+  codels-require	"pinocchio";
 
   uses		or_rotorcraft, or_pose_estimator, or_joint;
   provides	or_wrench_estimator;
