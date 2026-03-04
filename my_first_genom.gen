@@ -457,8 +457,9 @@ component my_first_genom {
     doc "";
     doc "Sets base pose (position + quaternion) and joint positions.";
     doc "The quaternion is automatically normalized.";
+    doc "Also sets reference.pos._present to allow transition to control.";
 
-    codel my_first_genom_set_config(in x, in y, in z, in qx, in qy, in qz, in qw, in qd, inout wholebody);
+    codel my_first_genom_set_config(in x, in y, in z, in qx, in qy, in qz, in qw, in qd, inout wholebody, inout reference);
   };
 
   function get_urdf(

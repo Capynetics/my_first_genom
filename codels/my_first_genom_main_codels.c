@@ -299,6 +299,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     q[5] = state_data->att._value.qz;
     q[6] = state_data->att._value.qw;
 
+    /* Velocities from state (same as Python - no frame conversion) */
     v[0] = state_data->vel._value.vx;
     v[1] = state_data->vel._value.vy;
     v[2] = state_data->vel._value.vz;
@@ -324,12 +325,15 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     /* Call whole-body controller */
     if (my_first_genom_wholebody_controller(*pinocchio, wholebody, q, v, tau) == 0) {
       double tau_base[6];
+
+      /* tau from Pinocchio is already in body frame; iG expects body frame wrench */
       for (i = 0; i < 6; i++) tau_base[i] = tau[i];
 
       /* Debug: print tau values occasionally */
       { static int dbg_wb = 0; if (dbg_wb++ % 1000 == 0)
-        warnx("WB tau=[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f] q=[%.2f,%.2f,%.2f]",
-              tau[0], tau[1], tau[2], tau[3], tau[4], tau[5],
+        warnx("WB tau_body=[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f] q=[%.2f,%.2f,%.2f]",
+              tau_base[0], tau_base[1], tau_base[2],
+              tau_base[3], tau_base[4], tau_base[5],
               q[0], q[1], q[2]); }
 
       /* Base wrench to rotor velocities: u = iG @ tau_base */

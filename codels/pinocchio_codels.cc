@@ -23,6 +23,7 @@
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <Eigen/Dense>
 
+#include "my_first_genom_c_types.h"
 #include "codels.h"
 
 /* C-safe accessor for pinocchio loaded state */
@@ -116,6 +117,7 @@ my_first_genom_set_config(double x, double y, double z,
                           double qx, double qy, double qz, double qw,
                           const double qd[8],
                           my_first_genom_ids_wholebody_s *wholebody,
+                          or_rigid_body_state *reference,
                           const genom_context self)
 {
   (void)self;
@@ -135,6 +137,12 @@ my_first_genom_set_config(double x, double y, double z,
   for (int i = 0; i < 8; i++) {
     wholebody->qd_joint[i] = qd[i];
   }
+
+  /* Set reference to allow transition from init to control */
+  reference->pos._present = true;
+  reference->pos._value.x = x;
+  reference->pos._value.y = y;
+  reference->pos._value.z = z;
 
   warnx("Config set: pos=[%.2f,%.2f,%.2f], quat=[%.3f,%.3f,%.3f,%.3f], joints=[%.2f,%.2f,...]",
         wholebody->qd_base[0], wholebody->qd_base[1], wholebody->qd_base[2],
