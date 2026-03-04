@@ -16,6 +16,7 @@
 
 #include <err.h>
 #include <cstdlib>
+#include <cmath>
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
@@ -106,6 +107,39 @@ my_first_genom_set_wholebody_gains(const double Kp_base[6],
         wholebody->Kp_base[3], wholebody->Kp_base[4], wholebody->Kp_base[5],
         wholebody->Kd_base[0], wholebody->Kd_base[1], wholebody->Kd_base[2],
         wholebody->Kd_base[3], wholebody->Kd_base[4], wholebody->Kd_base[5]);
+
+  return genom_ok;
+}
+
+extern "C" genom_event
+my_first_genom_set_config(double x, double y, double z,
+                          double qx, double qy, double qz, double qw,
+                          const double qd[8],
+                          my_first_genom_ids_wholebody_s *wholebody,
+                          const genom_context self)
+{
+  (void)self;
+
+  /* Normalize quaternion */
+  double norm = std::sqrt(qx*qx + qy*qy + qz*qz + qw*qw);
+  if (norm < 1e-6) norm = 1.0;
+
+  wholebody->qd_base[0] = x;
+  wholebody->qd_base[1] = y;
+  wholebody->qd_base[2] = z;
+  wholebody->qd_base[3] = qx / norm;
+  wholebody->qd_base[4] = qy / norm;
+  wholebody->qd_base[5] = qz / norm;
+  wholebody->qd_base[6] = qw / norm;
+
+  for (int i = 0; i < 8; i++) {
+    wholebody->qd_joint[i] = qd[i];
+  }
+
+  warnx("Config set: pos=[%.2f,%.2f,%.2f], quat=[%.3f,%.3f,%.3f,%.3f], joints=[%.2f,%.2f,...]",
+        wholebody->qd_base[0], wholebody->qd_base[1], wholebody->qd_base[2],
+        wholebody->qd_base[3], wholebody->qd_base[4], wholebody->qd_base[5], wholebody->qd_base[6],
+        wholebody->qd_joint[0], wholebody->qd_joint[1]);
 
   return genom_ok;
 }

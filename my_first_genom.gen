@@ -443,6 +443,24 @@ component my_first_genom {
     codel my_first_genom_set_wholebody_gains(in Kp_base, in Kd_base, in Kp_joint, in Kd_joint, inout wholebody);
   };
 
+  function set_config(
+    in double x = 0. : "Desired X position (m)",
+    in double y = 0. : "Desired Y position (m)",
+    in double z = 1. : "Desired Z position (m)",
+    in double qx = 0. : "Desired quaternion X",
+    in double qy = 0. : "Desired quaternion Y",
+    in double qz = 0. : "Desired quaternion Z",
+    in double qw = 1. : "Desired quaternion W",
+    in double qd[8] = { 0., 0., 0., 0., 0., 0., 0., 0. } : "Desired joint positions (rad)"
+  ) {
+    doc "Set desired whole-body configuration";
+    doc "";
+    doc "Sets base pose (position + quaternion) and joint positions.";
+    doc "The quaternion is automatically normalized.";
+
+    codel my_first_genom_set_config(in x, in y, in z, in qx, in qy, in qz, in qw, in qd, inout wholebody);
+  };
+
   function get_urdf(
     out string value
   )
