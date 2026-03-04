@@ -222,7 +222,15 @@ int my_first_genom_wholebody_controller(
   }
 
   /* Control law: tau = g + Kp * e - Kd * v */
-  Eigen::VectorXd tau = g + Kp.asDiagonal() * e - Kd.asDiagonal() * v;
+  Eigen::VectorXd Kpe = Kp.asDiagonal() * e;
+  Eigen::VectorXd Kdv = Kd.asDiagonal() * v;
+  Eigen::VectorXd tau = g + Kpe - Kdv;
+
+  /* Debug: print control law components */
+  { static int dbg_ctrl = 0; if (dbg_ctrl++ % 1000 == 0)
+    warnx("WB g=[%.1f,%.1f,%.1f] Kpe=[%.1f,%.1f,%.1f] Kdv=[%.1f,%.1f,%.1f] v=[%.2f,%.2f,%.2f]",
+          g(0), g(1), g(2), Kpe(0), Kpe(1), Kpe(2), Kdv(0), Kdv(1), Kdv(2),
+          v(0), v(1), v(2)); }
 
   /* Copy output */
   Eigen::Map<Eigen::VectorXd>(tau_out, nv) = tau;
