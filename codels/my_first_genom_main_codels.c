@@ -268,6 +268,13 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   if (joints->read(self) == genom_ok)
     joints_data = joints->data(self);
 
+  /* Debug: trace wholebody condition */
+  { static int dbg_cond = 0; if (dbg_cond++ % 1000 == 0)
+    warnx("WB check: init=%d, loaded=%d, pinocchio=%p",
+          wholebody->init,
+          my_first_genom_pinocchio_is_loaded(*pinocchio),
+          (void*)*pinocchio); }
+
   /* Try wholebody controller if initialized */
   if (wholebody->init && my_first_genom_pinocchio_is_loaded(*pinocchio)) {
     double q[7 + 8];   /* max 7 base + 8 joints */
