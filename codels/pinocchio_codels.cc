@@ -200,6 +200,12 @@ int my_first_genom_wholebody_controller(
   /* Compute configuration error using Pinocchio's difference */
   Eigen::VectorXd e = pin::difference(model, q, qd);
 
+  /* Debug: print error vector */
+  { static int dbg_e = 0; if (dbg_e++ % 1000 == 0)
+    warnx("WB e=[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f] qd_z=%.2f q_z=%.2f",
+          e(0), e(1), e(2), e(3), e(4), e(5),
+          qd(2), q(2)); }
+
   /* Compute gravity */
   pin::computeGeneralizedGravity(model, data, q);
   Eigen::VectorXd g = data.g;
