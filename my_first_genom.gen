@@ -459,7 +459,7 @@ component my_first_genom {
     doc "The quaternion is automatically normalized.";
     doc "Also sets reference.pos._present to allow transition to control.";
 
-    codel my_first_genom_set_config(in x, in y, in z, in qx, in qy, in qz, in qw, in qd, inout wholebody, inout reference);
+    codel my_first_genom_set_config(in x, in y, in z, in qx, in qy, in qz, in qw, in qd, inout wholebody, inout ids::reference);
   };
 
   function get_urdf(
