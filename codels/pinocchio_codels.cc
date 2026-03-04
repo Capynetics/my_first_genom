@@ -24,6 +24,13 @@
 
 #include "codels.h"
 
+/* C-safe accessor for pinocchio loaded state */
+extern "C" int
+my_first_genom_pinocchio_is_loaded(const my_first_genom_pinocchio_s *pinocchio)
+{
+  return (pinocchio && pinocchio->loaded) ? 1 : 0;
+}
+
 extern "C" genom_event
 my_first_genom_load_urdf(const char *urdf_path,
                          my_first_genom_pinocchio_s **pinocchio,

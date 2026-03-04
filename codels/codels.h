@@ -98,6 +98,9 @@ extern "C" {
                 const double v[],
                 double tau[]);
 
+  /* Check if pinocchio model is loaded (C-safe accessor) */
+  int	my_first_genom_pinocchio_is_loaded(const my_first_genom_pinocchio_s *pinocchio);
+
 #ifdef __cplusplus
 }
 #endif

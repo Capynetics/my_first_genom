@@ -269,7 +269,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     joints_data = joints->data(self);
 
   /* Try wholebody controller if initialized */
-  if (wholebody->init && *pinocchio && (*pinocchio)->loaded) {
+  if (wholebody->init && my_first_genom_pinocchio_is_loaded(*pinocchio)) {
     double q[7 + 8];   /* max 7 base + 8 joints */
     double v[6 + 8];   /* max 6 base + 8 joints */
     double tau[6 + 8];
@@ -292,11 +292,11 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     v[5] = state_data->avel._value.wz;
 
     /* Joint state from dynamixel */
-    if (joints_data && joints_data->position._present && ctrl_nj > 0) {
-      for (i = 0; i < (size_t)ctrl_nj && i < joints_data->position._value._length; i++) {
-        q[7 + i] = joints_data->position._value._buffer[i];
-        v[6 + i] = (joints_data->velocity._present && i < joints_data->velocity._value._length)
-                   ? joints_data->velocity._value._buffer[i] : 0.0;
+    if (joints_data && joints_data->position._length > 0 && ctrl_nj > 0) {
+      for (i = 0; i < (size_t)ctrl_nj && i < joints_data->position._length; i++) {
+        q[7 + i] = joints_data->position._buffer[i];
+        v[6 + i] = (i < joints_data->velocity._length)
+                   ? joints_data->velocity._buffer[i] : 0.0;
       }
     } else {
       /* No joint data - use zeros */
