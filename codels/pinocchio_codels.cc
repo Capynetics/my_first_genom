@@ -104,98 +104,73 @@ my_first_genom_set_wholebody_gains(const double Kp_base[6],
 }
 
 /*
- * wholebody_controller - Compute whole-body PD + gravity compensation torques
+ * my_first_genom_wholebody_controller - Compute whole-body PD + gravity compensation torques
  *
  * Control law: τ = g(q) + Kp·e - Kd·q̇
  *
  * Inputs:
- *   q_base[7]      - current base pose [x,y,z,qx,qy,qz,qw]
- *   v_base[6]      - current base velocity [vx,vy,vz,wx,wy,wz]
- *   q_joint[nj]    - current joint positions
- *   v_joint[nj]    - current joint velocities
- *   wholebody      - gains and desired config
  *   pinocchio      - model/data
+ *   wholebody      - gains and desired config
+ *   q_in[]         - current config [x,y,z,qx,qy,qz,qw,q1,...,qnj] (7+nj)
+ *   v_in[]         - current velocity [vx,vy,vz,wx,wy,wz,dq1,...,dqnj] (6+nj)
  *
  * Outputs:
- *   tau_base[6]    - base wrench (force/torque)
- *   tau_joint[nj]  - joint torques
+ *   tau_out[]      - torques [fx,fy,fz,tx,ty,tz,tau1,...,taunj] (6+nj)
  *
  * Returns 0 on success, -1 if not initialized
  */
-int wholebody_controller(const double q_base[7],
-                         const double v_base[6],
-                         const double *q_joint,
-                         const double *v_joint,
-                         const my_first_genom_ids_wholebody_s *wholebody,
-                         const my_first_genom_pinocchio_s *pinocchio,
-                         double tau_base[6],
-                         double *tau_joint)
+int my_first_genom_wholebody_controller(
+    my_first_genom_pinocchio_s *pinocchio,
+    const my_first_genom_ids_wholebody_s *wb,
+    const double q_in[],
+    const double v_in[],
+    double tau_out[])
 {
   namespace pin = pinocchio;
 
-  if (!pinocchio || !pinocchio->loaded || !wholebody->init)
+  if (!pinocchio || !pinocchio->loaded || !wb->init)
     return -1;
 
   const pin::Model &model = *pinocchio->model;
   pin::Data &data = *pinocchio->data;
-  const int nj = wholebody->nj;
-  const int nv = model.nv;
-  const int nq = model.nq;
+  const int nj = wb->nj;
+  const int nv = model.nv;  /* 6 + nj */
+  const int nq = model.nq;  /* 7 + nj */
 
-  /* Build configuration vector q (nq = 7 + nj for free-flyer) */
-  Eigen::VectorXd q(nq);
-  /* Base: [x,y,z,qx,qy,qz,qw] */
-  for (int i = 0; i < 7; i++)
-    q(i) = q_base[i];
-  /* Joints */
-  for (int i = 0; i < nj; i++)
-    q(7 + i) = q_joint[i];
-
-  /* Build velocity vector v (nv = 6 + nj) */
-  Eigen::VectorXd v(nv);
-  /* Base velocity: [vx,vy,vz,wx,wy,wz] */
-  for (int i = 0; i < 6; i++)
-    v(i) = v_base[i];
-  /* Joint velocities */
-  for (int i = 0; i < nj; i++)
-    v(6 + i) = v_joint[i];
-
-  /* Compute gravity compensation: g(q) */
-  Eigen::VectorXd g = pin::computeGeneralizedGravity(model, data, q);
+  /* Map inputs to Eigen */
+  Eigen::Map<const Eigen::VectorXd> q(q_in, nq);
+  Eigen::Map<const Eigen::VectorXd> v(v_in, nv);
 
   /* Build desired configuration qd */
   Eigen::VectorXd qd(nq);
-  for (int i = 0; i < 7; i++)
-    qd(i) = wholebody->qd_base[i];
+  qd.segment<3>(0) = Eigen::Map<const Eigen::Vector3d>(wb->qd_base);      /* pos */
+  qd.segment<4>(3) = Eigen::Map<const Eigen::Vector4d>(wb->qd_base + 3);  /* quat */
   for (int i = 0; i < nj; i++)
-    qd(7 + i) = wholebody->qd_joint[i];
+    qd(7 + i) = wb->qd_joint[i];
 
-  /*
-   * Compute configuration error e = qd ⊖ q
-   * For SE(3) base, use Pinocchio's difference operator
-   * For revolute joints, it's simply qd - q
-   */
+  /* Compute configuration error using Pinocchio's difference */
   Eigen::VectorXd e = pin::difference(model, q, qd);
 
-  /* Build gain vectors */
+  /* Compute gravity */
+  pin::computeGeneralizedGravity(model, data, q);
+  Eigen::VectorXd g = data.g;
+
+  /* Build Kp and Kd vectors */
   Eigen::VectorXd Kp(nv), Kd(nv);
   for (int i = 0; i < 6; i++) {
-    Kp(i) = wholebody->Kp_base[i];
-    Kd(i) = wholebody->Kd_base[i];
+    Kp(i) = wb->Kp_base[i];
+    Kd(i) = wb->Kd_base[i];
   }
   for (int i = 0; i < nj; i++) {
-    Kp(6 + i) = wholebody->Kp_joint[i];
-    Kd(6 + i) = wholebody->Kd_joint[i];
+    Kp(6 + i) = wb->Kp_joint[i];
+    Kd(6 + i) = wb->Kd_joint[i];
   }
 
-  /* Control law: τ = g(q) + Kp·e - Kd·q̇ */
-  Eigen::VectorXd tau = g + Kp.cwiseProduct(e) - Kd.cwiseProduct(v);
+  /* Control law: tau = g + Kp * e - Kd * v */
+  Eigen::VectorXd tau = g + Kp.asDiagonal() * e - Kd.asDiagonal() * v;
 
-  /* Extract outputs */
-  for (int i = 0; i < 6; i++)
-    tau_base[i] = tau(i);
-  for (int i = 0; i < nj; i++)
-    tau_joint[i] = tau(6 + i);
+  /* Copy output */
+  Eigen::Map<Eigen::VectorXd>(tau_out, nv) = tau;
 
   return 0;
 }
