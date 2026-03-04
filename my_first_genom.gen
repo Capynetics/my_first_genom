@@ -269,6 +269,7 @@ component my_first_genom {
 
     codel<control> my_first_genom_main_control(in body, inout servo,
                                      in state, in wrench_measure,
+                                     in joints, in wholebody, inout pinocchio,
                                      ids inout reference,
                                      inout log, out rotor_input,
                                      out joint_input)

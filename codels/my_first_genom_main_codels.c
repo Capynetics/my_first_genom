@@ -223,6 +223,9 @@ genom_event
 my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_genom_ids_servo_s *servo,
                   const my_first_genom_state *state,
                   const my_first_genom_wrench_measure *wrench_measure,
+                  const my_first_genom_joints *joints,
+                  const my_first_genom_ids_wholebody_s *wholebody,
+                  my_first_genom_pinocchio_s **pinocchio,
                   or_rigid_body_state *reference, my_first_genom_log_s **log,
                   const my_first_genom_rotor_input *rotor_input,
                   const my_first_genom_joint_input *joint_input,
@@ -232,6 +235,7 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   or_wrench_estimator_state *wrench_data = wrench_measure->data(self);
   or_rotorcraft_input *input_data = rotor_input->data(self);
   or_joint_input *joint_data = joint_input->data(self);
+  const or_joint_state *joints_data = NULL;
   struct timeval tv;
   size_t i, nj, maxj;
   int e;
@@ -260,7 +264,104 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   /* check reference */
   my_first_genom_reference_check(tv, reference);
 
-  /* position controller */
+  /* Read joint state */
+  if (joints->read(self) == genom_ok)
+    joints_data = joints->data(self);
+
+  /* Try wholebody controller if initialized */
+  if (wholebody->init && *pinocchio && (*pinocchio)->loaded) {
+    double q[7 + 8];   /* max 7 base + 8 joints */
+    double v[6 + 8];   /* max 6 base + 8 joints */
+    double tau[6 + 8];
+    int ctrl_nj = wholebody->nj;
+
+    /* Build current configuration q = [x,y,z,qx,qy,qz,qw,q1,...,qnj] */
+    q[0] = state_data->pos._value.x;
+    q[1] = state_data->pos._value.y;
+    q[2] = state_data->pos._value.z;
+    q[3] = state_data->att._value.qx;
+    q[4] = state_data->att._value.qy;
+    q[5] = state_data->att._value.qz;
+    q[6] = state_data->att._value.qw;
+
+    v[0] = state_data->vel._value.vx;
+    v[1] = state_data->vel._value.vy;
+    v[2] = state_data->vel._value.vz;
+    v[3] = state_data->avel._value.wx;
+    v[4] = state_data->avel._value.wy;
+    v[5] = state_data->avel._value.wz;
+
+    /* Joint state from dynamixel */
+    if (joints_data && joints_data->position._present && ctrl_nj > 0) {
+      for (i = 0; i < (size_t)ctrl_nj && i < joints_data->position._value._length; i++) {
+        q[7 + i] = joints_data->position._value._buffer[i];
+        v[6 + i] = (joints_data->velocity._present && i < joints_data->velocity._value._length)
+                   ? joints_data->velocity._value._buffer[i] : 0.0;
+      }
+    } else {
+      /* No joint data - use zeros */
+      for (i = 0; i < (size_t)ctrl_nj; i++) {
+        q[7 + i] = 0.0;
+        v[6 + i] = 0.0;
+      }
+    }
+
+    /* Call whole-body controller */
+    if (my_first_genom_wholebody_controller(*pinocchio, wholebody, q, v, tau) == 0) {
+      double tau_base[6];
+      for (i = 0; i < 6; i++) tau_base[i] = tau[i];
+
+      /* Base wrench to rotor velocities: u = iG @ tau_base */
+      for (i = 0; i < body->rotors; i++) {
+        double u = 0;
+        int j;
+        for (j = 0; j < 6; j++) {
+          u += body->iG[i * 6 + j] * tau_base[j];
+        }
+        /* Clip to [wmin^2, wmax^2] */
+        double wmin2 = body->wmin * fabs(body->wmin);
+        double wmax2 = body->wmax * fabs(body->wmax);
+        if (u < wmin2) u = wmin2;
+        if (u > wmax2) u = wmax2;
+        input_data->desired._buffer[i] = sqrt(fabs(u));
+      }
+      input_data->desired._length = body->rotors;
+
+      /* Joint torques */
+      if (joint_data) {
+        joint_data->ts.sec = tv.tv_sec;
+        joint_data->ts.nsec = tv.tv_usec * 1000;
+        joint_data->position._present = false;
+        joint_data->velocity._present = false;
+        joint_data->effort._present = true;
+
+        maxj = sizeof(joint_data->effort._value._buffer) /
+          sizeof(joint_data->effort._value._buffer[0]);
+        nj = ctrl_nj;
+        if (nj > maxj) nj = maxj;
+
+        joint_data->effort._value._length = nj;
+        for (i = 0; i < nj; i++) {
+          joint_data->effort._value._buffer[i] = tau[6 + i];
+        }
+        joint_input->write(self);
+      }
+
+      /* output */
+      input_data->ts = state_data->ts;
+      input_data->control = or_rotorcraft_velocity;
+      if (servo->scale < 1.) {
+        for (i = 0; i < input_data->desired._length; i++)
+          input_data->desired._buffer[i] *= servo->scale;
+        servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
+      }
+      rotor_input->write(self);
+      return my_first_genom_measure;
+    }
+    /* Fallback to legacy controller if wholebody failed */
+  }
+
+  /* Legacy position controller */
   my_first_genom_controller(body, servo, state_data, reference, wrench_data,
                   *log, &input_data->desired);
 
