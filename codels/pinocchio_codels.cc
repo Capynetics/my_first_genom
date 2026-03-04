@@ -73,3 +73,31 @@ my_first_genom_load_urdf(const char *urdf_path,
     return my_first_genom_e_sys_error("load_urdf", self);
   }
 }
+
+extern "C" genom_event
+my_first_genom_set_wholebody_gains(const double Kp_base[6],
+                                   const double Kd_base[6],
+                                   const double Kp_joint[8],
+                                   const double Kd_joint[8],
+                                   my_first_genom_ids_wholebody_s *wholebody,
+                                   const genom_context self)
+{
+  (void)self;
+
+  for (int i = 0; i < 6; i++) {
+    wholebody->Kp_base[i] = Kp_base[i];
+    wholebody->Kd_base[i] = Kd_base[i];
+  }
+  for (int i = 0; i < 8; i++) {
+    wholebody->Kp_joint[i] = Kp_joint[i];
+    wholebody->Kd_joint[i] = Kd_joint[i];
+  }
+
+  warnx("Wholebody gains set: Kp_base=[%.1f,%.1f,%.1f,%.1f,%.1f,%.1f], Kd_base=[%.1f,%.1f,%.1f,%.1f,%.1f,%.1f]",
+        wholebody->Kp_base[0], wholebody->Kp_base[1], wholebody->Kp_base[2],
+        wholebody->Kp_base[3], wholebody->Kp_base[4], wholebody->Kp_base[5],
+        wholebody->Kd_base[0], wholebody->Kd_base[1], wholebody->Kd_base[2],
+        wholebody->Kd_base[3], wholebody->Kd_base[4], wholebody->Kd_base[5]);
+
+  return genom_ok;
+}

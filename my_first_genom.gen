@@ -427,6 +427,21 @@ component my_first_genom {
     throw e_sys;
   };
 
+  function set_wholebody_gains(
+    in double Kp_base[6] = { 10., 10., 10., 5., 5., 5. } : "Position gains [x,y,z,wx,wy,wz]",
+    in double Kd_base[6] = { 5., 5., 5., 2., 2., 2. } : "Velocity damping [x,y,z,wx,wy,wz]",
+    in double Kp_joint[8] = { 10., 10., 10., 10., 10., 10., 10., 10. } : "Joint position gains",
+    in double Kd_joint[8] = { 5., 5., 5., 5., 5., 5., 5., 5. } : "Joint velocity damping"
+  ) {
+    doc "Set PD gains for whole-body controller";
+    doc "";
+    doc "Control law: τ = g(q) + Kp·e - Kd·q̇";
+    doc "Base gains apply to the 6-DOF floating base (translation + rotation).";
+    doc "Joint gains apply to the arm/manipulator joints.";
+
+    codel my_first_genom_set_wholebody_gains(in Kp_base, in Kd_base, in Kp_joint, in Kd_joint, inout wholebody);
+  };
+
   function get_urdf(
     out string value
   )
