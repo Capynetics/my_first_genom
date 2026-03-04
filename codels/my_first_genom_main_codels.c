@@ -343,17 +343,17 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
         for (j = 0; j < 6; j++) {
           u += body->iG[i * 6 + j] * tau_base[j];
         }
-        /* Clip to [wmin^2, wmax^2] */
-        double wmin2 = body->wmin * fabs(body->wmin);
-        double wmax2 = body->wmax * fabs(body->wmax);
-        if (u < wmin2) u = wmin2;
-        if (u > wmax2) u = wmax2;
-        input_data->desired._buffer[i] = sqrt(fabs(u));
+        /* Clip to [400, 12100] = [20^2, 110^2] - same as Python */
+        if (u < 400.0) u = 400.0;
+        if (u > 12100.0) u = 12100.0;
+        input_data->desired._buffer[i] = sqrt(u);
       }
       input_data->desired._length = body->rotors;
 
-      /* Joint torques */
+      /* Joint torques - send 8 values with zero padding like Python */
       if (joint_data) {
+        const size_t hardcoded_nj = 8;
+
         joint_data->ts.sec = tv.tv_sec;
         joint_data->ts.nsec = tv.tv_usec * 1000;
         joint_data->position._present = false;
@@ -362,12 +362,16 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
 
         maxj = sizeof(joint_data->effort._value._buffer) /
           sizeof(joint_data->effort._value._buffer[0]);
-        nj = ctrl_nj;
+        nj = hardcoded_nj;
         if (nj > maxj) nj = maxj;
 
         joint_data->effort._value._length = nj;
         for (i = 0; i < nj; i++) {
-          joint_data->effort._value._buffer[i] = tau[6 + i];
+          /* Send tau[6+i] for real joints, zero for rest */
+          if (i < (size_t)ctrl_nj)
+            joint_data->effort._value._buffer[i] = tau[6 + i];
+          else
+            joint_data->effort._value._buffer[i] = 0.0;
         }
         joint_input->write(self);
       }

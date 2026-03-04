@@ -20,6 +20,7 @@
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/crba.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <Eigen/Dense>
 
@@ -206,7 +207,8 @@ int my_first_genom_wholebody_controller(
           e(0), e(1), e(2), e(3), e(4), e(5),
           qd(2), q(2)); }
 
-  /* Compute gravity */
+  /* Compute dynamics terms - match Python exactly */
+  pin::crba(model, data, q);  /* Python calls this too */
   pin::computeGeneralizedGravity(model, data, q);
   Eigen::VectorXd g = data.g;
 
