@@ -375,11 +375,8 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
       /* output */
       input_data->ts = state_data->ts;
       input_data->control = or_rotorcraft_velocity;
-      if (servo->scale < 1.) {
-        for (i = 0; i < input_data->desired._length; i++)
-          input_data->desired._buffer[i] *= servo->scale;
-        servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
-      }
+      /* Skip ramp for wholebody controller - it already has proper control law */
+      servo->scale = 1.;
       rotor_input->write(self);
       return my_first_genom_measure;
     }
