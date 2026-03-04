@@ -322,7 +322,7 @@ my_first_genom_set_gtmrp_geom(uint16_t rotors, double cx, double cy, double cz,
  * Throws my_first_genom_e_inval.
  */
 genom_event
-my_first_genom_set_iG(uint16_t rotors, const double iG[or_rotorcraft_max_rotors * 6],
+my_first_genom_set_iG(uint16_t rotors, const double iG[48],
                       double mass, my_first_genom_ids_body_s *body,
                       const genom_context self)
 {
@@ -332,8 +332,8 @@ my_first_genom_set_iG(uint16_t rotors, const double iG[or_rotorcraft_max_rotors 
   if (rotors > or_rotorcraft_max_rotors)
     return my_first_genom_e_inval_set("rotors", self);
 
-  /* Copy the inverse allocation matrix directly */
-  for (i = 0; i < or_rotorcraft_max_rotors * 6; i++)
+  /* Copy the inverse allocation matrix directly (8x6 = 48 elements) */
+  for (i = 0; i < 48; i++)
     body->iG[i] = iG[i];
 
   /* Set wrench bounds conservatively */
