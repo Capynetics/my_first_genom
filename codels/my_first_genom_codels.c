@@ -17,6 +17,7 @@
 #include "acmy_first_genom.h"
 
 #include <sys/time.h>
+#include <err.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
@@ -327,10 +328,9 @@ my_first_genom_set_iG(uint16_t rotors, const double iG[48],
                       const genom_context self)
 {
   size_t i;
-  (void)self;
 
   if (rotors > or_rotorcraft_max_rotors)
-    return my_first_genom_e_inval_set("rotors", self);
+    return my_first_genom_e_inval(&(my_first_genom_e_inval_detail){"too many rotors"}, self);
 
   /* Copy the inverse allocation matrix directly (8x6 = 48 elements) */
   for (i = 0; i < 48; i++)
