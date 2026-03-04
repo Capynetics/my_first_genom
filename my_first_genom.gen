@@ -219,6 +219,22 @@ component my_first_genom {
 
     throw e_inval;
   };
+
+  function set_iG(
+    in unsigned short rotors = 6 : "Number of rotors",
+    in double iG[or_rotorcraft::max_rotors * 6] : "Inverse allocation matrix (row-major)",
+    in double mass = 1.8 : "Total mass (kg)") {
+    doc "Set inverse allocation matrix directly.";
+    doc "";
+    doc "Use this for custom geometries (e.g., tilthex) where get_gtmrp_geom";
+    doc "does not compute the correct allocation.";
+    doc "The iG matrix maps 6D wrench [fx,fy,fz,tx,ty,tz] to rotor squared speeds.";
+
+    codel my_first_genom_set_iG(in rotors, in iG, in mass, out body);
+
+    throw e_inval;
+  };
+
   attribute set_emerg(in servo.emerg = {
     .descent = 0.1 : "Vertical acceleration for emergency descent (m/s²)",
     .dx = 0.05 : "Position uncertainty threshold (m)",

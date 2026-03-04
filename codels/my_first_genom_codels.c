@@ -314,6 +314,49 @@ my_first_genom_set_gtmrp_geom(uint16_t rotors, double cx, double cy, double cz,
 /* already defined in service set_saturation_weights */
 
 
+/* --- Function set_iG -------------------------------------------------- */
+
+/** Codel my_first_genom_set_iG of function set_iG.
+ *
+ * Returns genom_ok.
+ * Throws my_first_genom_e_inval.
+ */
+genom_event
+my_first_genom_set_iG(uint16_t rotors, const double iG[or_rotorcraft_max_rotors * 6],
+                      double mass, my_first_genom_ids_body_s *body,
+                      const genom_context self)
+{
+  size_t i;
+  (void)self;
+
+  if (rotors > or_rotorcraft_max_rotors)
+    return my_first_genom_e_inval_set("rotors", self);
+
+  /* Copy the inverse allocation matrix directly */
+  for (i = 0; i < or_rotorcraft_max_rotors * 6; i++)
+    body->iG[i] = iG[i];
+
+  /* Set wrench bounds conservatively */
+  body->wmin = 20.0;
+  body->wmax = 110.0;
+  for (i = 0; i < 3; i++) {
+    body->wrench_min[i] = -100.0;
+    body->wrench_max[i] = 100.0;
+  }
+  for (i = 3; i < 6; i++) {
+    body->wrench_min[i] = -10.0;
+    body->wrench_max[i] = 10.0;
+  }
+
+  body->mass = mass;
+  body->rotors = rotors;
+  body->init = true;
+
+  warnx("set_iG: loaded %d-rotor inverse allocation matrix, mass=%.2f kg",
+        rotors, mass);
+  return genom_ok;
+}
+
 
 /* --- Function get_reference ------------------------------------------- */
 
