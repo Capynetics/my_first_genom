@@ -91,6 +91,15 @@ extern "C" {
                 const double wmin, const double wmax, double fmin[6],
                 double fmax[6]);
 
+  int	wholebody_controller(const double q_base[7],
+                const double v_base[6],
+                const double *q_joint,
+                const double *v_joint,
+                const my_first_genom_ids_wholebody_s *wholebody,
+                const my_first_genom_pinocchio_s *pinocchio,
+                double tau_base[6],
+                double *tau_joint);
+
 #ifdef __cplusplus
 }
 #endif
