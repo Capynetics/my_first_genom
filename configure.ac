@@ -34,7 +34,9 @@ AC_SUBST(requires_SPEC, ['m4_normalize([
 ])'])
 AC_SUBST(codels_requires_SPEC, ['m4_normalize([
   eigen3,
-  proxsuite >= 0.6.4
+  proxsuite >= 0.6.4,
+  pinocchio,
+  urdfdom
 ])'])
 
 PKG_CHECK_MODULES(requires, [$requires_SPEC])
