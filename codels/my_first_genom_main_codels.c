@@ -195,6 +195,14 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   if (!state->read(self))
     my_first_genom_main_measure(body, state, rotor_measure, wrench_measure, self);
 
+  /* Debug: trace init conditions */
+  { static int dbg_init_cond = 0; if (dbg_init_cond++ % 1000 == 0)
+    warnx("INIT cond: ref_pos=%d ref_vel=%d state=%p state_pos=%d state_att=%d",
+          reference->pos._present, reference->vel._present,
+          (void*)state_data,
+          state_data ? state_data->pos._present : -1,
+          state_data ? state_data->att._present : -1); }
+
   /* switch to servo mode upon reception of the first valid position or
    * velocity. Ensure that state has valid pos/att and initialize any empty
    * pos/att reference to it. */
