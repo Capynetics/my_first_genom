@@ -311,6 +311,12 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
       double tau_base[6];
       for (i = 0; i < 6; i++) tau_base[i] = tau[i];
 
+      /* Debug: print tau values occasionally */
+      { static int dbg_wb = 0; if (dbg_wb++ % 1000 == 0)
+        warnx("WB tau=[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f] q=[%.2f,%.2f,%.2f]",
+              tau[0], tau[1], tau[2], tau[3], tau[4], tau[5],
+              q[0], q[1], q[2]); }
+
       /* Base wrench to rotor velocities: u = iG @ tau_base */
       for (i = 0; i < body->rotors; i++) {
         double u = 0;
