@@ -136,7 +136,8 @@ extern "C" {
                 const struct timeval *tv);
 
   /* Disable wholebody controller and revert to legacy */
-  void	my_first_genom_disable_wholebody(my_first_genom_ids_wholebody_s *wholebody);
+  genom_event	my_first_genom_disable_wholebody(my_first_genom_ids_wholebody_s *wholebody,
+                const genom_context self);
 
 #ifdef __cplusplus
 }

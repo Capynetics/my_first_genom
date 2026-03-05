@@ -635,12 +635,16 @@ my_first_genom_write_joint_efforts(or_joint_input *joint_data,
 
 /* --- Helper: Disable wholebody controller ------------------------------ */
 
-void
-my_first_genom_disable_wholebody(my_first_genom_ids_wholebody_s *wholebody)
+genom_event
+my_first_genom_disable_wholebody(my_first_genom_ids_wholebody_s *wholebody,
+                                 const genom_context self)
 {
+  (void)self;
+
   if (wholebody) {
     wholebody->init = false;
     /* Reset integrator when switching modes */
     my_first_genom_controller_reset_integrator();
   }
+  return genom_ok;
 }
