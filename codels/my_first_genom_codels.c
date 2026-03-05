@@ -323,8 +323,8 @@ my_first_genom_set_gtmrp_geom(uint16_t rotors, double cx, double cy, double cz,
  * Throws my_first_genom_e_inval.
  */
 genom_event
-my_first_genom_set_iG(uint16_t rotors, const double iG[48],
-                      double mass, my_first_genom_ids_body_s *body,
+my_first_genom_set_iG(uint16_t rotors, const double iG[48], double mass,
+                      my_first_genom_ids_body_s *body,
                       const genom_context self)
 {
   size_t i;
@@ -332,27 +332,17 @@ my_first_genom_set_iG(uint16_t rotors, const double iG[48],
   if (rotors > or_rotorcraft_max_rotors)
     return my_first_genom_e_inval(&(my_first_genom_e_inval_detail){"too many rotors"}, self);
 
-  /* Copy the inverse allocation matrix directly (8x6 = 48 elements) */
+  /* Override iG with provided custom values */
   for (i = 0; i < 48; i++)
     body->iG[i] = iG[i];
 
-  /* Set wrench bounds conservatively */
   body->wmin = 20.0;
   body->wmax = 110.0;
-  for (i = 0; i < 3; i++) {
-    body->wrench_min[i] = -100.0;
-    body->wrench_max[i] = 100.0;
-  }
-  for (i = 3; i < 6; i++) {
-    body->wrench_min[i] = -10.0;
-    body->wrench_max[i] = 10.0;
-  }
-
-  body->mass = mass;
   body->rotors = rotors;
+  body->mass = mass;
   body->init = true;
 
-  warnx("set_iG: loaded %d-rotor inverse allocation matrix, mass=%.2f kg",
+  warnx("set_iG: overriding with custom %d-rotor inverse allocation matrix, mass=%.2f kg",
         rotors, mass);
   return genom_ok;
 }

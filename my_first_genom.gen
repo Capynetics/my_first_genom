@@ -222,13 +222,12 @@ component my_first_genom {
 
   function set_iG(
     in unsigned short rotors = 6 : "Number of rotors",
-    in double iG[48],
+    in double iG[48] : "Custom inverse allocation matrix (8x6 row-major)",
     in double mass = 1.8 : "Total mass (kg)") {
-    doc "Set inverse allocation matrix directly.";
+    doc "Override inverse allocation matrix with custom values.";
     doc "";
-    doc "iG is the 8x6 row-major inverse allocation matrix.";
-    doc "Use this for custom geometries (e.g., tilthex) where set_gtmrp_geom";
-    doc "does not compute the correct allocation.";
+    doc "Use set_gtmrp_geom first to compute iG from geometry parameters.";
+    doc "Then call this function to override iG with custom values if needed.";
     doc "The iG matrix maps 6D wrench [fx,fy,fz,tx,ty,tz] to rotor squared speeds.";
 
     codel my_first_genom_set_iG(in rotors, in iG, in mass, out body);
