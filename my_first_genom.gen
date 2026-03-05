@@ -220,22 +220,6 @@ component my_first_genom {
     throw e_inval;
   };
 
-  function set_iG(
-    in unsigned short rotors = 6 : "Number of rotors",
-    in double iG[48],
-    in double mass = 1.8 : "Total mass (kg)") {
-    doc "Override inverse allocation matrix with custom values.";
-    doc "";
-    doc "iG is the 8x6 row-major custom inverse allocation matrix.";
-    doc "Use set_gtmrp_geom first to compute iG from geometry parameters.";
-    doc "Then call this function to override iG with custom values if needed.";
-    doc "The iG matrix maps 6D wrench [fx,fy,fz,tx,ty,tz] to rotor squared speeds.";
-
-    codel my_first_genom_set_iG(in rotors, in iG, in mass, out body);
-
-    throw e_inval;
-  };
-
   attribute set_emerg(in servo.emerg = {
     .descent = 0.1 : "Vertical acceleration for emergency descent (m/s²)",
     .dx = 0.05 : "Position uncertainty threshold (m)",

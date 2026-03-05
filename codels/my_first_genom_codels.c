@@ -315,39 +315,6 @@ my_first_genom_set_gtmrp_geom(uint16_t rotors, double cx, double cy, double cz,
 /* already defined in service set_saturation_weights */
 
 
-/* --- Function set_iG -------------------------------------------------- */
-
-/** Codel my_first_genom_set_iG of function set_iG.
- *
- * Returns genom_ok.
- * Throws my_first_genom_e_inval.
- */
-genom_event
-my_first_genom_set_iG(uint16_t rotors, const double iG[48], double mass,
-                      my_first_genom_ids_body_s *body,
-                      const genom_context self)
-{
-  size_t i;
-
-  if (rotors > or_rotorcraft_max_rotors)
-    return my_first_genom_e_inval(&(my_first_genom_e_inval_detail){"too many rotors"}, self);
-
-  /* Override iG with provided custom values */
-  for (i = 0; i < 48; i++)
-    body->iG[i] = iG[i];
-
-  body->wmin = 20.0;
-  body->wmax = 110.0;
-  body->rotors = rotors;
-  body->mass = mass;
-  body->init = true;
-
-  warnx("set_iG: overriding with custom %d-rotor inverse allocation matrix, mass=%.2f kg",
-        rotors, mass);
-  return genom_ok;
-}
-
-
 /* --- Function get_reference ------------------------------------------- */
 
 /** Codel my_first_genom_get_reference of function get_reference.

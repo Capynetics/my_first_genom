@@ -166,7 +166,6 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   rotor_input->write(self); // writes a zero-velocity command during startup/pause
 
   /* also keep joint port alive during init with zero efforts */
-  { static int dbg_init = 0; if (dbg_init++ < 10) warnx("INIT: joint_data=%p", (void*)joint_data); }
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
@@ -194,14 +193,6 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   /* update measured wrench */
   if (!state->read(self))
     my_first_genom_main_measure(body, state, rotor_measure, wrench_measure, self);
-
-  /* Debug: trace init conditions */
-  { static int dbg_init_cond = 0; if (dbg_init_cond++ % 1000 == 0)
-    warnx("INIT cond: ref_pos=%d ref_vel=%d state=%p state_pos=%d state_att=%d",
-          reference->pos._present, reference->vel._present,
-          (void*)state_data,
-          state_data ? state_data->pos._present : -1,
-          state_data ? state_data->att._present : -1); }
 
   /* switch to servo mode upon reception of the first valid position or
    * velocity. Ensure that state has valid pos/att and initialize any empty
@@ -276,13 +267,6 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   if (joints->read(self) == genom_ok)
     joints_data = joints->data(self);
 
-  /* Debug: trace wholebody condition */
-  { static int dbg_cond = 0; if (dbg_cond++ % 1000 == 0)
-    warnx("WB check: init=%d, loaded=%d, pinocchio=%p",
-          wholebody->init,
-          my_first_genom_pinocchio_is_loaded(*pinocchio),
-          (void*)*pinocchio); }
-
   /* Try wholebody controller if initialized */
   if (wholebody->init && my_first_genom_pinocchio_is_loaded(*pinocchio)) {
     double q[7 + 8];   /* max 7 base + 8 joints */
@@ -328,13 +312,6 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
 
       /* tau from Pinocchio is already in body frame; iG expects body frame wrench */
       for (i = 0; i < 6; i++) tau_base[i] = tau[i];
-
-      /* Debug: print tau values occasionally */
-      { static int dbg_wb = 0; if (dbg_wb++ % 1000 == 0)
-        warnx("WB tau_body=[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f] q=[%.2f,%.2f,%.2f]",
-              tau_base[0], tau_base[1], tau_base[2],
-              tau_base[3], tau_base[4], tau_base[5],
-              q[0], q[1], q[2]); }
 
       /* Base wrench to rotor velocities: u = iG @ tau_base */
       for (i = 0; i < body->rotors; i++) {
@@ -400,7 +377,6 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
 
-  { static int dbg_ctrl = 0; if (dbg_ctrl++ < 10) warnx("CONTROL: joint_data=%p", (void*)joint_data); }
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
@@ -423,7 +399,6 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
         joint_data->effort._value._buffer[i] = 0.0;
     }
 
-    { static int dbg_ctrl_w = 0; if (dbg_ctrl_w++ < 5) warnx("CONTROL: joint_input->write() called"); }
     joint_input->write(self);
   }
 
@@ -573,7 +548,6 @@ my_first_genom_main_emergency(const my_first_genom_ids_body_s *body,
   }
 
   /* also publish joint commands during emergency */
-  { static int dbg_emg = 0; if (dbg_emg++ < 10) warnx("EMERGENCY: joint_data=%p", (void*)joint_data); }
   if (joint_data) {
     const size_t hardcoded_nj = 8;
 
