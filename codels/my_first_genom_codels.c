@@ -602,3 +602,45 @@ get_string(const char *urdf_path, char **value,
 
   return genom_ok;
 }
+
+
+/* --- Helper: Write joint efforts to output port --------------------- */
+
+void
+my_first_genom_write_joint_efforts(or_joint_input *joint_data,
+                                   const double *efforts, size_t nj,
+                                   const struct timeval *tv)
+{
+  size_t i, maxj;
+
+  if (!joint_data) return;
+
+  joint_data->ts.sec = tv->tv_sec;
+  joint_data->ts.nsec = tv->tv_usec * 1000;
+  joint_data->position._present = false;
+  joint_data->velocity._present = false;
+  joint_data->effort._present = true;
+
+  maxj = sizeof(joint_data->effort._value._buffer) /
+         sizeof(joint_data->effort._value._buffer[0]);
+  if (nj > maxj) nj = maxj;
+  if (nj > MY_FIRST_GENOM_MAX_JOINTS) nj = MY_FIRST_GENOM_MAX_JOINTS;
+
+  joint_data->effort._value._length = nj;
+  for (i = 0; i < nj; i++) {
+    joint_data->effort._value._buffer[i] = efforts ? efforts[i] : 0.0;
+  }
+}
+
+
+/* --- Helper: Disable wholebody controller ------------------------------ */
+
+void
+my_first_genom_disable_wholebody(my_first_genom_ids_wholebody_s *wholebody)
+{
+  if (wholebody) {
+    wholebody->init = false;
+    /* Reset integrator when switching modes */
+    my_first_genom_controller_reset_integrator();
+  }
+}

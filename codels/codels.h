@@ -25,8 +25,26 @@
 #define H_my_first_genom_CODELS
 
 #include <aio.h>
+#include <sys/time.h>
 
 #include "my_first_genom_c_types.h"
+
+/* ---- Constants --------------------------------------------------------- */
+
+/* Maximum number of joints supported by wholebody controller */
+#define MY_FIRST_GENOM_MAX_JOINTS        8
+
+/* Physical constants */
+#define MY_FIRST_GENOM_GRAVITY           9.81
+
+/* State timeout for emergency detection (seconds) */
+#define MY_FIRST_GENOM_STATE_TIMEOUT_S   0.5
+
+/* Propeller velocity squared limits for wholebody controller */
+#define MY_FIRST_GENOM_PROP_VEL_MIN_SQ   400.0    /* 20^2 rad/s */
+#define MY_FIRST_GENOM_PROP_VEL_MAX_SQ   12100.0  /* 110^2 rad/s */
+
+/* ---- Error codes ------------------------------------------------------- */
 
 enum my_first_genome {
   my_first_genom_EOK =	0,
@@ -40,11 +58,19 @@ enum my_first_genome {
 #ifdef __cplusplus
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
+#include <Eigen/Core>
 
 struct my_first_genom_pinocchio_s {
   pinocchio::Model *model;
   pinocchio::Data *data;
   bool loaded;
+
+  /* Pre-allocated vectors to avoid allocation in hot path */
+  Eigen::VectorXd qd_cache;      /* desired configuration */
+  Eigen::VectorXd error_cache;   /* configuration error */
+  Eigen::VectorXd Kp_cache;      /* gain vectors */
+  Eigen::VectorXd Kd_cache;
+  Eigen::VectorXd tau_cache;     /* torque output */
 };
 #else
 struct my_first_genom_pinocchio_s;
@@ -101,6 +127,17 @@ extern "C" {
   /* Check if pinocchio model is loaded (C-safe accessor) */
   int	my_first_genom_pinocchio_is_loaded(const my_first_genom_pinocchio_s *pinocchio);
 
+  /* Reset position controller integrator (call on mode switch) */
+  void	my_first_genom_controller_reset_integrator(void);
+
+  /* Helper to write joint efforts to output port */
+  void	my_first_genom_write_joint_efforts(or_joint_input *joint_data,
+                const double *efforts, size_t nj,
+                const struct timeval *tv);
+
+  /* Disable wholebody controller and revert to legacy */
+  void	my_first_genom_disable_wholebody(my_first_genom_ids_wholebody_s *wholebody);
+
 #ifdef __cplusplus
 }
 #endif
@@ -137,7 +174,8 @@ struct my_first_genom_log_s {
   "meas_fx meas_fy meas_fz meas_tx meas_ty meas_tz "                    \
   "xd yd zd rolld pitchd yawd vxd vyd vzd wxd wyd wzd axd ayd azd "     \
   "e_x e_y e_z e_vx e_vy e_vz e_rx e_ry e_rz e_wx e_wy e_wz "           \
-  "sat_fz sat_tx sat_ty sat_tz"
+  "sat_fz sat_tx sat_ty sat_tz "                                        \
+  "wb_active wb_tau_fx wb_tau_fy wb_tau_fz wb_tau_tx wb_tau_ty wb_tau_tz"
 # define my_first_genom_log_fmt                                                   \
   "%d.%09d %g "                                                           \
   my_first_genom_logfmt my_first_genom_logfmt my_first_genom_logfmt my_first_genom_logfmt my_first_genom_logfmt my_first_genom_logfmt \

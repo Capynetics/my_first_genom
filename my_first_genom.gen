@@ -56,6 +56,7 @@ component my_first_genom {
   exception e_input, e_geom;
   exception e_sys { short code; string<128> what; };
   exception e_inval { string<128> what; };
+  exception e_urdf { string<256> what; };  /* URDF loading errors */
 
   native log_s;
 
@@ -222,17 +223,23 @@ component my_first_genom {
 
   attribute set_emerg(in servo.emerg = {
     .descent = 0.1 : "Vertical acceleration for emergency descent (m/s²)",
-    .dx = 0.05 : "Position uncertainty threshold (m)",
-    .dq = 5 : "Attitude uncertainty threshold (deg)",
-    .dv = 0.2 : "Linear velocity uncertainty threshold (m/s)",
-    .dq = 20 : "Angular velocity uncertainty threshold (deg/s)" }) {
+    .dx = 0.05 : "Position uncertainty threshold (m, 3σ)",
+    .dq = 5 : "Attitude uncertainty threshold (deg, 3σ)",
+    .dv = 0.2 : "Linear velocity uncertainty threshold (m/s, 3σ)",
+    .dw = 20 : "Angular velocity uncertainty threshold (deg/s, 3σ)" }) {
     doc "Set thresholds for emergency descent.";
+    doc "";
+    doc "Units: All thresholds are expressed as 3σ (3 times standard deviation).";
+    doc "- dx: position uncertainty in meters";
+    doc "- dq: attitude uncertainty in degrees (converted internally to rad²)";
+    doc "- dv: linear velocity uncertainty in m/s";
+    doc "- dw: angular velocity uncertainty in deg/s (converted internally)";
     doc "";
     doc "`dx`, `dq`, `dv` and `dw` represent the maximum uncertainty tolerated";
     doc "in the input <<state>> for position (`dx`), orientation (`dq`),";
     doc "linear velocity (`dv`) and angular velocity (`dw`), measured as 3";
     doc "times the standard deviation.";
-    doc "By default, `dx` is 5cm, `dq` is 5⁰, `dv` is 20cm/s and `dw` 20⁰/s.";
+    doc "By default, `dx` is 5cm, `dq` is 5°, `dv` is 20cm/s and `dw` 20°/s.";
     doc "Beyond that threshold, an emergency descent is started.";
     doc "";
     doc "As long as the emergency descent is active, the position error or";
@@ -431,14 +438,23 @@ component my_first_genom {
   };
 
   function set_wholebody_gains(
-    in double Kp_base[6] = { 10., 10., 10., 5., 5., 5. } : "Position gains [x,y,z,wx,wy,wz]",
-    in double Kd_base[6] = { 5., 5., 5., 2., 2., 2. } : "Velocity damping [x,y,z,wx,wy,wz]",
-    in double Kp_joint[8] = { 10., 10., 10., 10., 10., 10., 10., 10. } : "Joint position gains",
-    in double Kd_joint[8] = { 5., 5., 5., 5., 5., 5., 5., 5. } : "Joint velocity damping"
+    in double Kp_base[6] = { 10., 10., 10., 5., 5., 5. } : "Position gains [x,y,z,wx,wy,wz] (N/m, Nm/rad)",
+    in double Kd_base[6] = { 5., 5., 5., 2., 2., 2. } : "Velocity damping [x,y,z,wx,wy,wz] (Ns/m, Nms/rad)",
+    in double Kp_joint[8] = { 10., 10., 10., 10., 10., 10., 10., 10. } : "Joint position gains (Nm/rad)",
+    in double Kd_joint[8] = { 5., 5., 5., 5., 5., 5., 5., 5. } : "Joint velocity damping (Nms/rad)"
   ) {
     doc "Set PD gains for whole-body controller";
     doc "";
     doc "Control law: τ = g(q) + Kp·e - Kd·q̇";
+    doc "";
+    doc "Units:";
+    doc "- Kp_base[0:3]: translational stiffness (N/m)";
+    doc "- Kp_base[3:6]: rotational stiffness (Nm/rad)";
+    doc "- Kd_base[0:3]: translational damping (Ns/m)";
+    doc "- Kd_base[3:6]: rotational damping (Nms/rad)";
+    doc "- Kp_joint: joint stiffness (Nm/rad)";
+    doc "- Kd_joint: joint damping (Nms/rad)";
+    doc "";
     doc "Base gains apply to the 6-DOF floating base (translation + rotation).";
     doc "Joint gains apply to the arm/manipulator joints.";
 
@@ -462,6 +478,17 @@ component my_first_genom {
     doc "Also sets reference.pos._present to allow transition to control.";
 
     codel my_first_genom_set_config(in x, in y, in z, in qx, in qy, in qz, in qw, in qd, inout wholebody, ids inout reference);
+  };
+
+  function disable_wholebody() {
+    doc "Disable whole-body controller and revert to legacy position control";
+    doc "";
+    doc "This function disables the whole-body controller, causing the system";
+    doc "to fall back to the legacy SE(3) geometric position controller.";
+    doc "The position integrator is reset to avoid transients during the switch.";
+    doc "To re-enable wholebody control, call load_urdf() again.";
+
+    codel my_first_genom_disable_wholebody(inout wholebody);
   };
 
   function get_urdf(

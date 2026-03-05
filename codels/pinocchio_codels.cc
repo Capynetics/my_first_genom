@@ -63,6 +63,15 @@ my_first_genom_load_urdf(const char *urdf_path,
     (*pinocchio)->data = new pin::Data(*(*pinocchio)->model);
     (*pinocchio)->loaded = true;
 
+    /* Pre-allocate vectors to avoid allocation in control loop */
+    const int nv = (*pinocchio)->model->nv;
+    const int nq = (*pinocchio)->model->nq;
+    (*pinocchio)->qd_cache.resize(nq);
+    (*pinocchio)->error_cache.resize(nv);
+    (*pinocchio)->Kp_cache.resize(nv);
+    (*pinocchio)->Kd_cache.resize(nv);
+    (*pinocchio)->tau_cache.resize(nv);
+
     /* Set number of joints (nv - 6 base DOFs) */
     int nj = (*pinocchio)->model->nv - 6;
     if (nj < 0) nj = 0;
@@ -158,8 +167,11 @@ my_first_genom_set_config(double x, double y, double z,
  *
  * Control law: τ = g(q) + Kp·e - Kd·q̇
  *
+ * With joint limit handling: if joint is at limit, torque is clamped to
+ * prevent pushing further into the limit.
+ *
  * Inputs:
- *   pinocchio      - model/data
+ *   pinocchio      - model/data (with pre-allocated caches)
  *   wholebody      - gains and desired config
  *   q_in[]         - current config [x,y,z,qx,qy,qz,qw,q1,...,qnj] (7+nj)
  *   v_in[]         - current velocity [vx,vy,vz,wx,wy,wz,dq1,...,dqnj] (6+nj)
@@ -177,6 +189,7 @@ int my_first_genom_wholebody_controller(
     double tau_out[])
 {
   namespace pin = pinocchio;
+  static const double JOINT_LIMIT_EPS = 0.01;  /* radians from limit */
 
   if (!pinocchio || !pinocchio->loaded || !wb->init)
     return -1;
@@ -191,23 +204,27 @@ int my_first_genom_wholebody_controller(
   Eigen::Map<const Eigen::VectorXd> q(q_in, nq);
   Eigen::Map<const Eigen::VectorXd> v(v_in, nv);
 
+  /* Use pre-allocated vectors */
+  Eigen::VectorXd &qd = pinocchio->qd_cache;
+  Eigen::VectorXd &e = pinocchio->error_cache;
+  Eigen::VectorXd &Kp = pinocchio->Kp_cache;
+  Eigen::VectorXd &Kd = pinocchio->Kd_cache;
+  Eigen::VectorXd &tau = pinocchio->tau_cache;
+
   /* Build desired configuration qd */
-  Eigen::VectorXd qd(nq);
   qd.segment<3>(0) = Eigen::Map<const Eigen::Vector3d>(wb->qd_base);      /* pos */
   qd.segment<4>(3) = Eigen::Map<const Eigen::Vector4d>(wb->qd_base + 3);  /* quat */
   for (int i = 0; i < nj; i++)
     qd(7 + i) = wb->qd_joint[i];
 
   /* Compute configuration error using Pinocchio's difference */
-  Eigen::VectorXd e = pin::difference(model, q, qd);
+  e = pin::difference(model, q, qd);
 
-  /* Compute dynamics terms - match Python exactly */
-  pin::crba(model, data, q);  /* Python calls this too */
+  /* Compute gravity compensation only (crba() not needed for PD+g control) */
   pin::computeGeneralizedGravity(model, data, q);
-  Eigen::VectorXd g = data.g;
+  const Eigen::VectorXd &g = data.g;
 
   /* Build Kp and Kd vectors */
-  Eigen::VectorXd Kp(nv), Kd(nv);
   for (int i = 0; i < 6; i++) {
     Kp(i) = wb->Kp_base[i];
     Kd(i) = wb->Kd_base[i];
@@ -218,9 +235,22 @@ int my_first_genom_wholebody_controller(
   }
 
   /* Control law: tau = g + Kp * e - Kd * v */
-  Eigen::VectorXd Kpe = Kp.asDiagonal() * e;
-  Eigen::VectorXd Kdv = Kd.asDiagonal() * v;
-  Eigen::VectorXd tau = g + Kpe - Kdv;
+  tau = g + Kp.asDiagonal() * e - Kd.asDiagonal() * v;
+
+  /* Joint limit handling: clamp torques to prevent pushing into limits */
+  for (int i = 0; i < nj; i++) {
+    const int qi = 7 + i;  /* joint position index in q */
+    const int vi = 6 + i;  /* joint velocity index in v/tau */
+
+    /* Check upper limit */
+    if (q(qi) >= model.upperPositionLimit(qi) - JOINT_LIMIT_EPS) {
+      if (tau(vi) > 0.0) tau(vi) = 0.0;  /* Don't push further up */
+    }
+    /* Check lower limit */
+    if (q(qi) <= model.lowerPositionLimit(qi) + JOINT_LIMIT_EPS) {
+      if (tau(vi) < 0.0) tau(vi) = 0.0;  /* Don't push further down */
+    }
+  }
 
   /* Copy output */
   Eigen::Map<Eigen::VectorXd>(tau_out, nv) = tau;

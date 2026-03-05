@@ -45,6 +45,9 @@
 
 static proxsuite::proxqp::dense::QP<double> my_first_genom_wrenchsat(4, 0, 0);
 
+/* Flag to request integrator reset on next controller call */
+static bool my_first_genom_integrator_reset_requested = false;
+
 void
 my_first_genom_controller_init(const my_first_genom_ids_body_s *body,
                      const my_first_genom_ids_servo_s *servo)
@@ -90,6 +93,20 @@ my_first_genom_controller_init(const my_first_genom_ids_body_s *body,
 
 
 /*
+ * --- my_first_genom_controller_reset_integrator -----------------------------------
+ *
+ * Reset position integrator. Call this when switching control modes
+ * (e.g., from wholebody to legacy controller) to avoid transients.
+ */
+
+void
+my_first_genom_controller_reset_integrator(void)
+{
+  my_first_genom_integrator_reset_requested = true;
+}
+
+
+/*
  * --- my_first_genom_controller -----------------------------------------------------
  *
  * Implements the controller described in:
@@ -126,7 +143,15 @@ my_first_genom_controller(const my_first_genom_ids_body_s *body,
   Vector3d x, v, w;
 
   Vector3d ex, ev, eR, ew;
-  static Vector3d Iex;
+  static Vector3d Iex = Vector3d::Zero();
+  static bool Iex_initialized = false;
+
+  /* Initialize or reset integrator */
+  if (!Iex_initialized || my_first_genom_integrator_reset_requested) {
+    Iex.setZero();
+    Iex_initialized = true;
+    my_first_genom_integrator_reset_requested = false;
+  }
 
   double c;
   Vector3d f;
@@ -217,7 +242,7 @@ my_first_genom_controller(const my_first_genom_ids_body_s *body,
   }
 
   /* reference acceleration */
-  ad = Vector3d(0, 0, 9.81) + ad;
+  ad = Vector3d(0, 0, MY_FIRST_GENOM_GRAVITY) + ad;
   c = ad.norm();
 
   /* reference orientation
@@ -423,7 +448,7 @@ my_first_genom_controller(const my_first_genom_ids_body_s *body,
 
       log->req.aio_nbytes = snprintf(
         log->buffer, sizeof(log->buffer),
-        "%s" my_first_genom_log_fmt "\n",
+        "%s" my_first_genom_log_fmt " %d %g %g %g %g %g %g\n",
         log->skipped ? "\n" : "",
         state->ts.sec, state->ts.nsec,
         state->ts.sec - reference->ts.sec +
@@ -441,7 +466,11 @@ my_first_genom_controller(const my_first_genom_ids_body_s *body,
         ex(0), ex(1), ex(2), ev(0), ev(1), ev(2),
         eR(0), eR(1), eR(2), ew(0), ew(1), ew(2),
         my_first_genom_wrenchsat.results.x(0), my_first_genom_wrenchsat.results.x(1),
-        my_first_genom_wrenchsat.results.x(2), my_first_genom_wrenchsat.results.x(3));
+        my_first_genom_wrenchsat.results.x(2), my_first_genom_wrenchsat.results.x(3),
+        /* Wholebody fields: wb_active=0 for legacy controller */
+        0,    /* wb_active */
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0  /* wb_tau (not applicable) */
+      );
 
       if (aio_write(&log->req)) {
         warn("log");
@@ -473,7 +502,7 @@ my_first_genom_state_check(const struct timeval now,
 
   /* check state */
   if (now.tv_sec + 1e-6 * now.tv_usec >
-      0.5 + state->ts.sec + 1e-9 * state->ts.nsec) {
+      MY_FIRST_GENOM_STATE_TIMEOUT_S + state->ts.sec + 1e-9 * state->ts.nsec) {
     state->pos._present = false;
     state->att._present = false;
     state->vel._present = false;
@@ -549,7 +578,7 @@ my_first_genom_reference_check(const struct timeval now,
 
   /* deal with obsolete reference */
   if (now.tv_sec + 1e-6 * now.tv_usec >
-      0.5 + reference->ts.sec + 1e-9 * reference->ts.nsec) {
+      MY_FIRST_GENOM_STATE_TIMEOUT_S + reference->ts.sec + 1e-9 * reference->ts.nsec) {
     reference->vel._present = true;
     v->vx = v->vy = v->vz = 0.;
 

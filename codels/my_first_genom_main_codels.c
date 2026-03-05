@@ -166,26 +166,8 @@ my_first_genom_main_init(or_rigid_body_state *reference,
   rotor_input->write(self); // writes a zero-velocity command during startup/pause
 
   /* also keep joint port alive during init with zero efforts */
-  if (joint_data) {
-    const size_t hardcoded_nj = 8;
-
-    joint_data->ts.sec = tv.tv_sec;
-    joint_data->ts.nsec = tv.tv_usec * 1000;
-    joint_data->position._present = false;
-    joint_data->velocity._present = false;
-    joint_data->effort._present = true;
-
-    maxj = sizeof(joint_data->effort._value._buffer) /
-      sizeof(joint_data->effort._value._buffer[0]);
-    nj = hardcoded_nj;
-    if (nj > maxj) nj = maxj;
-
-    joint_data->effort._value._length = nj;
-    for(j = 0; j < nj; j++)
-      joint_data->effort._value._buffer[j] = 0.0;
-
-    joint_input->write(self);
-  }
+  my_first_genom_write_joint_efforts(joint_data, NULL, MY_FIRST_GENOM_MAX_JOINTS, &tv);
+  if (joint_data) joint_input->write(self);
 
   /* wait for geometry */
   if (!body->init) return my_first_genom_pause_init;
@@ -236,10 +218,17 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   or_joint_input *joint_data = joint_input->data(self);
   const or_joint_state *joints_data = NULL;
   struct timeval tv;
-  size_t i, nj, maxj;
+  size_t i;
   int e;
+  static bool wb_fallback_warned = false;
 
   gettimeofday(&tv, NULL);
+
+  /* Defensive NULL check for rotor input */
+  if (!input_data) {
+    warnx("rotor input unavailable");
+    return my_first_genom_emergency;
+  }
 
   /* read current state */
   if (state->read(self) || !(state_data = state->data(self))) {
@@ -320,37 +309,22 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
         for (j = 0; j < 6; j++) {
           u += body->iG[i * 6 + j] * tau_base[j];
         }
-        /* Clip to [400, 12100] = [20^2, 110^2] - same as Python */
-        if (u < 400.0) u = 400.0;
-        if (u > 12100.0) u = 12100.0;
+        /* Clip to propeller velocity squared limits */
+        if (u < MY_FIRST_GENOM_PROP_VEL_MIN_SQ) u = MY_FIRST_GENOM_PROP_VEL_MIN_SQ;
+        if (u > MY_FIRST_GENOM_PROP_VEL_MAX_SQ) u = MY_FIRST_GENOM_PROP_VEL_MAX_SQ;
         input_data->desired._buffer[i] = sqrt(u);
       }
       input_data->desired._length = body->rotors;
 
-      /* Joint torques - send 8 values with zero padding like Python */
-      if (joint_data) {
-        const size_t hardcoded_nj = 8;
-
-        joint_data->ts.sec = tv.tv_sec;
-        joint_data->ts.nsec = tv.tv_usec * 1000;
-        joint_data->position._present = false;
-        joint_data->velocity._present = false;
-        joint_data->effort._present = true;
-
-        maxj = sizeof(joint_data->effort._value._buffer) /
-          sizeof(joint_data->effort._value._buffer[0]);
-        nj = hardcoded_nj;
-        if (nj > maxj) nj = maxj;
-
-        joint_data->effort._value._length = nj;
-        for (i = 0; i < nj; i++) {
-          /* Send tau[6+i] for real joints, zero for rest */
-          if (i < (size_t)ctrl_nj)
-            joint_data->effort._value._buffer[i] = tau[6 + i];
-          else
-            joint_data->effort._value._buffer[i] = 0.0;
+      /* Joint torques - build effort array and use helper */
+      {
+        double efforts[MY_FIRST_GENOM_MAX_JOINTS];
+        int ctrl_nj_local = wholebody->nj;
+        for (i = 0; i < MY_FIRST_GENOM_MAX_JOINTS; i++) {
+          efforts[i] = (i < (size_t)ctrl_nj_local) ? tau[6 + i] : 0.0;
         }
-        joint_input->write(self);
+        my_first_genom_write_joint_efforts(joint_data, efforts, MY_FIRST_GENOM_MAX_JOINTS, &tv);
+        if (joint_data) joint_input->write(self);
       }
 
       /* output */
@@ -359,9 +333,16 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
       /* Skip ramp for wholebody controller - it already has proper control law */
       servo->scale = 1.;
       rotor_input->write(self);
+      wb_fallback_warned = false;  /* Reset fallback warning on success */
       return my_first_genom_measure;
     }
     /* Fallback to legacy controller if wholebody failed */
+    if (!wb_fallback_warned) {
+      warnx("wholebody controller failed, falling back to legacy");
+      wb_fallback_warned = true;
+      /* Reset integrator when switching to legacy mode */
+      my_first_genom_controller_reset_integrator();
+    }
   }
 
   /* Legacy position controller */
@@ -376,29 +357,11 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
 
-  if (joint_data) {
-    const size_t hardcoded_nj = 8;
-
-    joint_data->ts.sec = tv.tv_sec;
-    joint_data->ts.nsec = tv.tv_usec * 1000;
-    joint_data->position._present = false;
-    joint_data->velocity._present = false;
-    joint_data->effort._present = true;
-
-    maxj = sizeof(joint_data->effort._value._buffer) /
-      sizeof(joint_data->effort._value._buffer[0]);
-    nj = hardcoded_nj;
-    if (nj > maxj) nj = maxj;
-
-    joint_data->effort._value._length = nj;
-    for(i = 0; i < nj; i++) {
-      if (i < 2)
-        joint_data->effort._value._buffer[i] = 1.0;
-      else
-        joint_data->effort._value._buffer[i] = 0.0;
-    }
-
-    joint_input->write(self);
+  /* Legacy controller joint output: small holding torque for first 2 joints */
+  {
+    double efforts[MY_FIRST_GENOM_MAX_JOINTS] = {1.0, 1.0, 0., 0., 0., 0., 0., 0.};
+    my_first_genom_write_joint_efforts(joint_data, efforts, MY_FIRST_GENOM_MAX_JOINTS, &tv);
+    if (joint_data) joint_input->write(self);
   }
 
   rotor_input->write(self); // publishes the controller result
@@ -510,7 +473,7 @@ my_first_genom_main_emergency(const my_first_genom_ids_body_s *body,
   or_rotorcraft_input *input_data = rotor_input->data(self);
   or_joint_input *joint_data = joint_input->data(self);
   struct timeval tv;
-  size_t i, nj, maxj;
+  size_t i;
   int e;
 
   gettimeofday(&tv, NULL);
@@ -546,33 +509,14 @@ my_first_genom_main_emergency(const my_first_genom_ids_body_s *body,
     servo->scale += 1e-3 * my_first_genom_control_period_ms / servo->ramp;
   }
 
-  /* also publish joint commands during emergency */
-  if (joint_data) {
-    const size_t hardcoded_nj = 8;
-
-    joint_data->ts.sec = tv.tv_sec;
-    joint_data->ts.nsec = tv.tv_usec * 1000;
-    joint_data->position._present = false;
-    joint_data->velocity._present = false;
-    joint_data->effort._present = true;
-
-    maxj = sizeof(joint_data->effort._value._buffer) /
-      sizeof(joint_data->effort._value._buffer[0]);
-    nj = hardcoded_nj;
-    if (nj > maxj) nj = maxj;
-
-    joint_data->effort._value._length = nj;
-    for(i = 0; i < nj; i++) {
-      if (i < 2)
-        joint_data->effort._value._buffer[i] = 10.0;
-      else
-        joint_data->effort._value._buffer[i] = 0.0;
-    }
-
-    joint_input->write(self);
+  /* also publish joint commands during emergency - higher torque for joint 0,1 */
+  {
+    double efforts[MY_FIRST_GENOM_MAX_JOINTS] = {10.0, 10.0, 0., 0., 0., 0., 0., 0.};
+    my_first_genom_write_joint_efforts(joint_data, efforts, MY_FIRST_GENOM_MAX_JOINTS, &tv);
+    if (joint_data) joint_input->write(self);
   }
 
-  rotor_input->write(self); // sends the emergency-mode command (scaled/ramped) so the vehicle keeps receiving controlled descent/recovery inputs
+  rotor_input->write(self); // sends the emergency-mode command
   return my_first_genom_pause_emergency;
 }
 
@@ -590,7 +534,6 @@ my_first_genom_main_stop(const my_first_genom_rotor_input *rotor_input,
   or_rotorcraft_input *input_data;
   or_joint_input *joint_data = joint_input->data(self);
   struct timeval tv;
-  size_t j, nj, maxj;
   int i;
 
   input_data = rotor_input->data(self);
@@ -605,24 +548,8 @@ my_first_genom_main_stop(const my_first_genom_rotor_input *rotor_input,
     input_data->desired._buffer[i] = 0.;
 
   /* zero joint efforts on stop */
-  if (joint_data) {
-    joint_data->ts.sec = tv.tv_sec;
-    joint_data->ts.nsec = tv.tv_usec * 1000;
-    joint_data->position._present = false;
-    joint_data->velocity._present = false;
-    joint_data->effort._present = true;
-
-    maxj = sizeof(joint_data->effort._value._buffer) /
-      sizeof(joint_data->effort._value._buffer[0]);
-    nj = 8;
-    if (nj > maxj) nj = maxj;
-
-    joint_data->effort._value._length = nj;
-    for(j = 0; j < nj; j++)
-      joint_data->effort._value._buffer[j] = 0.0;
-
-    joint_input->write(self);
-  }
+  my_first_genom_write_joint_efforts(joint_data, NULL, MY_FIRST_GENOM_MAX_JOINTS, &tv);
+  if (joint_data) joint_input->write(self);
 
   rotor_input->write(self); // sends a zero-velocity command on stop
   return my_first_genom_ether;
