@@ -368,7 +368,6 @@ my_first_genom_main_control(const my_first_genom_ids_body_s *body, my_first_geno
   my_first_genom_controller(body, servo, state_data, reference, wrench_data,
                   *log, &input_data->desired);
 
-  /* output */
   input_data->ts = state_data->ts;
   if (servo->scale < 1.) {
     for(i = 0; i < input_data->desired._length; i++)
