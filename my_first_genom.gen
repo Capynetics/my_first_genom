@@ -248,6 +248,7 @@ component my_first_genom {
 
   attribute get_servo_parameters(out servo);
   attribute get_body_parameters(out body);
+  attribute get_wholebody_parameters(out wholebody);
 
   function get_reference(out or_rigid_body::state reference) {
     codel my_first_genom_get_reference(ids in reference::internal, local out reference);
