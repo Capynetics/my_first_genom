@@ -12,7 +12,7 @@
  *      notice and  this list of  conditions in the  documentation and/or
  *      other materials provided with the distribution.
  *
- *					Anthony Mallet on Tue Aug 11 2015
+ *					Johanata Brayan on Tue Mar 05 2026
  */
 #include "acmy_first_genom.h"
 
